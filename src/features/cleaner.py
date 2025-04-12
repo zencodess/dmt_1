@@ -63,3 +63,7 @@ class DataCleaner:
 
         clean_df = clean_df.dropna()
         return clean_df
+
+    @staticmethod
+    def advanced_impute():
+        pass
