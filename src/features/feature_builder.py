@@ -83,9 +83,19 @@ class FeatureMaker():
         )
         return train_df, val_df, test_df
 
+    def test_train_split_numpy_data(self, X, y, test_size=0.2, val_size=0.1):
+        train_val_x, test_x, train_val_y, test_y = train_test_split(
+            X, y, test_size=test_size, stratify=y, random_state=42
+        )
+        val_ratio_adjusted = val_size / (1 - test_size)
+        train_x, val_x, train_y, val_y = train_test_split(
+            train_val_x, train_val_y, test_size=val_ratio_adjusted, stratify=train_val_y, random_state=42
+        )
+        return train_x, val_x, test_x, train_y, val_y, test_y
+
     def build_rnn_sequence_dataset(self, df_instances, sequence_length=6):
         daily_avg = self.build_daily_average_df(df_instances)
-        feature_cols = [col for col in daily_avg.columns if col not in ["id", "date", "mood_output"]]
+        feature_cols = [col for col in daily_avg.columns if col not in ["id", "date"]]
         sequences = []
         labels = []
         for user_id, group in daily_avg.groupby("id"):
@@ -93,9 +103,10 @@ class FeatureMaker():
             for i in range(len(group) - sequence_length + 1):
                 window = group.iloc[i:i + sequence_length]
                 if len(window) == sequence_length:
-                    X = window[feature_cols].values.astype(np.float32)
-                    y = int(window.iloc[-1]["mood_output"])
-                    sequences.append(X)
-                    labels.append(y)
+                    input_features = window.iloc[:-1][feature_cols].values.astype(np.float32)
+                    last_day_features = window.iloc[-1][[col for col in feature_cols if col != "mood_output"]].values.astype(np.float32)
+                    input_features = np.vstack([input_features, last_day_features])
+                    output_label = int(window.iloc[-1]["mood_output"])
+                    sequences.append(input_features)
+                    labels.append(output_label)
         return np.array(sequences), np.array(labels)
-
