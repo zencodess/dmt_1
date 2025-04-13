@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
@@ -14,12 +15,16 @@ class FeatureMaker():
         self.numerical_features = []
         self.duration_features = []
 
-    def build_predictive_dataset_from_cleaned(self, cleaned_df, window_size=5):
+    def build_daily_average_df(self, df):
         # creating one data row for one day
-        cleaned_df["date"] = cleaned_df["time"].dt.date
-        daily_avg = cleaned_df.groupby(["id", "date", "variable"])["value"].mean().unstack().reset_index()
-        daily_avg = daily_avg.sort_values(by=["id", "date"]).reset_index(drop=True)
+        df["date"] = df["time"].dt.date
+        daily_avg = df.groupby(["id", "date", "variable"])["value"].mean().unstack().reset_index()
+        daily_avg =  daily_avg.sort_values(by=["id", "date"]).reset_index(drop=True)
         print('daily_avg', daily_avg.head())
+        return daily_avg
+
+    def build_predictive_dataset_from_cleaned(self, cleaned_df, window_size=5):
+        daily_avg = self.build_daily_average_df(cleaned_df)
         instance_rows = []
 
         # group rows by id, sort by date, build features
@@ -77,3 +82,20 @@ class FeatureMaker():
             random_state=42
         )
         return train_df, val_df, test_df
+
+    def build_rnn_sequence_dataset(self, df_instances, sequence_length=6):
+        daily_avg = self.build_daily_average_df(df_instances)
+        feature_cols = [col for col in daily_avg.columns if col not in ["id", "date", "mood_output"]]
+        sequences = []
+        labels = []
+        for user_id, group in daily_avg.groupby("id"):
+            group = group.sort_values("date").reset_index(drop=True)
+            for i in range(len(group) - sequence_length + 1):
+                window = group.iloc[i:i + sequence_length]
+                if len(window) == sequence_length:
+                    X = window[feature_cols].values.astype(np.float32)
+                    y = int(window.iloc[-1]["mood_output"])
+                    sequences.append(X)
+                    labels.append(y)
+        return np.array(sequences), np.array(labels)
+
