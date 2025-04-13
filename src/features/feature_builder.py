@@ -25,31 +25,35 @@ class FeatureMaker():
 
         for user_id, group in daily_avg.groupby("id"):
             group = group.sort_values("date").reset_index(drop=True)
-            for i in range(window_size, len(group) - 1):
-                current_window = group.iloc[i - window_size:i]
-                next_day = group.iloc[i + 1]
+            for i in range(window_size, len(group)):
+                history_window = group.iloc[i - window_size:i]  # t-5 to t-1
+                target_row = group.iloc[i]  # t
                 row = {
                     "id": user_id,
-                    "date": group.iloc[i]["date"]
+                    "date": target_row["date"]
                 }
-                # categorical variables - sum
+                # categorical variables - sum only
                 for var in self.categorical_variables:
                     if var in group.columns:
-                        row[f"{var}_sum_last_{window_size}"] = current_window[var].sum()
+                        row[f"{var}_sum_hist"] = history_window[var].sum()
                 # numerical variables - mean and std
                 for var in self.numerical_variables:
                     if var in group.columns:
-                        row[f"{var}_mean_last_{window_size}"] = current_window[var].mean()
-                        row[f"{var}_std_last_{window_size}"] = current_window[var].std()
+                        row[f"{var}_mean_hist"] = history_window[var].mean()
+                        row[f"{var}_std_hist"] = history_window[var].std()
                 # duration variables - sum and std
                 for var in self.duration_variables:
                     if var in group.columns:
-                        row[f"{var}_sum_last_{window_size}"] = current_window[var].sum()
-                        row[f"{var}_std_last_{window_size}"] = current_window[var].std()
-                # target - binary output class: mood >= 5 is class 1, else class 0
-                if "mood" in next_day:
-                    mood_next = next_day["mood"]
-                    row["mood_output"] = 1 if mood_next >= 5 else 0
+                        row[f"{var}_sum_hist"] = history_window[var].sum()
+                        row[f"{var}_std_hist"] = history_window[var].std()
+                # day t values except mood
+                for var in self.categorical_variables + self.numerical_variables + self.duration_variables:
+                    if var in group.columns and var != "mood":
+                        row[f"{var}_t"] = target_row[var]
+                # target - mood at day t
+                if "mood" in target_row:
+                    mood = target_row["mood"]
+                    row["mood_output"] = 1 if mood >= 5 else 0
                 instance_rows.append(row)
         df_instances = pd.DataFrame(instance_rows)
         return df_instances
