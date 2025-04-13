@@ -1,6 +1,4 @@
 import pandas as pd
-import numpy as np
-from scipy.stats import entropy
 from sklearn.model_selection import train_test_split
 
 
@@ -17,12 +15,14 @@ class FeatureMaker():
         self.duration_features = []
 
     def build_predictive_dataset_from_cleaned(self, cleaned_df, window_size=5):
+        # creating one data row for one day
         cleaned_df["date"] = cleaned_df["time"].dt.date
         daily_avg = cleaned_df.groupby(["id", "date", "variable"])["value"].mean().unstack().reset_index()
         daily_avg = daily_avg.sort_values(by=["id", "date"]).reset_index(drop=True)
         print('daily_avg', daily_avg.head())
         instance_rows = []
 
+        # group rows by id, sort by date, build features
         for user_id, group in daily_avg.groupby("id"):
             group = group.sort_values("date").reset_index(drop=True)
             for i in range(window_size, len(group)):
