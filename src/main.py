@@ -35,11 +35,15 @@ class PredictMood():
 
     def train_random_forest_classifier(self, enable_ml_impute=False):
         self.rf_input_df = self.feature_maker.build_predictive_dataset_from_cleaned(self.clean_df, enable_ml_impute)
-        self.rf_input_df.to_csv("data/rf_input_df.csv", index=False)
         train_df, val_df, test_df = FeatureMaker.train_test_val_split(self.rf_input_df)
-        train_df.to_csv("data/rf_train_df.csv", index=False)
-        val_df.to_csv("data/rf_val_df.csv", index=False)
-        test_df.to_csv("data/rf_test_df.csv", index=False)
+        if enable_ml_impute:
+            file_suffix = "ml_imputed"
+        else:
+            file_suffix = ""
+        self.rf_input_df.to_csv(f"data/rf_input_df{file_suffix}.csv", index=False)
+        train_df.to_csv(f"data/rf_train_df{file_suffix}.csv", index=False)
+        val_df.to_csv(f"data/rf_val_df{file_suffix}.csv", index=False)
+        test_df.to_csv(f"data/rf_test_df{file_suffix}.csv", index=False)
         # continue coding
 
     def train_rnn_classifier(self, enable_ml_impute=False):

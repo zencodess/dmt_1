@@ -70,7 +70,11 @@ class DataCleaner:
         return clean_df
 
     @staticmethod
-    def advanced_impute_missing_with_ml(df, columns):
+    def advanced_impute_missing_with_ml(df, columns=None):
+        if columns is None:
+            print(df.columns, 'df cols')
+            # columns = df.columns - set(["id", "mood_output", "mood", "date"])
+            columns = list(set(df.columns) - {"id", "mood_output", "mood", "date"})
         imputer = IterativeImputer(estimator=RandomForestRegressor(), random_state=42, max_iter=10)
         df[columns] = imputer.fit_transform(df[columns])
         return df
