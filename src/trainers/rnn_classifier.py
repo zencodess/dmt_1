@@ -13,6 +13,7 @@ class RNNClassifier(torch_nn.Module):
         self.rnn = torch_nn.RNN(input_dim, hidden_dim, num_layers=num_layers, batch_first=True, dropout=dropout)
         self.dense = torch_nn.Linear(hidden_dim, 1)
         self.sigmoid = torch_nn.Sigmoid()
+        self.model = None
 
     def forward(self, x):
         out, _ = self.rnn(x)
@@ -54,18 +55,11 @@ class RNNClassifier(torch_nn.Module):
             f1 = f1_score(all_labels, all_preds)
             auc = roc_auc_score(all_labels, all_preds)
             print(f"Epoch {epoch + 1}: F1 = {f1:.4f}, AUC = {auc:.4f}")
-        return model
+        self.model = model
 
-from trainers.rnn_classifier import train_rnn_model
-from feature_builder import FeatureMaker
-from sklearn.model_selection import train_test_split
+    def save_model(self):
+        torch.save(self.model.state_dict(), "models/rnn_classifier.pth")
+        print("RNN model saved to models/rnn_classifier.pth")
 
-# Build RNN sequence data
-X_rnn, y_rnn = feature_maker.build_rnn_sequence_dataset(df_cleaned)
-
-# Split the data
-X_train_rnn, X_val_rnn, y_train_rnn, y_val_rnn = train_test_split(X_rnn, y_rnn, test_size=0.2, random_state=42, stratify=y_rnn)
-
-# Train RNN
-input_dim_rnn = X_rnn.shape[2]
-model_rnn = train_rnn_model(X_train_rnn, y_train_rnn, X_val_rnn, y_val_rnn, input_dim=input_dim_rnn)
+    def test_rnn_model(self, test_x, test_y, device='cpu', epochs=20):
+        pass

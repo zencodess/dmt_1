@@ -1,5 +1,10 @@
 import pandas as pd
 
+from sklearn.experimental import enable_iterative_imputer  # noqa
+from sklearn.impute import IterativeImputer
+from sklearn.ensemble import RandomForestRegressor
+
+
 class DataCleaner:
     variable_accepted_ranges = {
         "mood": (1, 10),
@@ -65,5 +70,7 @@ class DataCleaner:
         return clean_df
 
     @staticmethod
-    def advanced_impute():
-        pass
+    def advanced_impute_missing_with_ml(df, columns):
+        imputer = IterativeImputer(estimator=RandomForestRegressor(), random_state=42, max_iter=10)
+        df[columns] = imputer.fit_transform(df[columns])
+        return df
