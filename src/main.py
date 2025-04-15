@@ -31,7 +31,7 @@ class PredictMood():
 
     def clean_data(self):
         self.clean_df = DataCleaner.clean_and_impute(self.data)
-        self.clean_df.to_csv(DATA_PATH+"\\cleaned_dataset.csv", index=False)
+        self.clean_df.to_csv(os.path.join(DATA_PATH,"cleaned_dataset.csv"), index=False)
         print("Data cleaning and imputation complete. Cleaned data saved to 'cleaned_dataset.csv'.")
 
     def feature_engineering(self):
@@ -44,10 +44,10 @@ class PredictMood():
             file_suffix = "ml_imputed"
         else:
             file_suffix = ""
-        self.rf_input_df.to_csv(DATA_PATH+f"\\rf_input_df{file_suffix}.csv", index=False)
-        train_df.to_csv(DATA_PATH+f"\\rf_train_df{file_suffix}.csv", index=False)
-        val_df.to_csv(DATA_PATH+f"\\rf_val_df{file_suffix}.csv", index=False)
-        test_df.to_csv(DATA_PATH+f"\\rf_test_df{file_suffix}.csv", index=False)
+        self.rf_input_df.to_csv(DATA_PATH+f"rf_input_df{file_suffix}.csv", index=False)
+        train_df.to_csv(os.path.join(DATA_PATH,f"rf_train_df{file_suffix}.csv"), index=False)
+        val_df.to_csv(os.path.join(DATA_PATH,f"rf_val_df{file_suffix}.csv"), index=False)
+        test_df.to_csv(os.path.join(DATA_PATH,f"rf_test_df{file_suffix}.csv"), index=False)
         
     def train_randomforest_classifier(self):
         self.RandomForestInstance=RandomForest()
@@ -64,7 +64,7 @@ class PredictMood():
 
     def train_regression_models(self, enable_ml_impute=False):
         self.regression_df = self.feature_maker.build_predictive_dataset_from_cleaned(self.clean_df, enable_ml_impute)
-        self.regression_df.to_csv(DATA_PATH+"\\regression_df.csv", index=False)
+        self.regression_df.to_csv(os.path.join(DATA_PATH,"regression_df.csv"), index=False)
 
     def run(self):
         self.read_data()
