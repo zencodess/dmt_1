@@ -2,12 +2,14 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+from src.features.cleaner import DataCleaner
+
 
 class FeatureMaker():
     def __init__(self, df=None):
         self.df = df
         self.categorical_variables = ["call", "sms"]
-        self.numerical_variables = ["circumplex.arousal", "circumplex.valence"]
+        self.numerical_variables = ["circumplex.arousal", "circumplex.valence", "activity"]
         self.duration_variables = ["screen", "appCat.builtin", "appCat.communication", "appCat.entertainment",
         "appCat.finance", "appCat.game", "appCat.office", "appCat.other", "appCat.social",
         "appCat.travel", "appCat.unknown", "appCat.utilities", "appCat.weather"]
@@ -15,16 +17,30 @@ class FeatureMaker():
         self.numerical_features = []
         self.duration_features = []
 
-    def build_daily_average_df(self, df):
+    def fill_null_values_with_median(self, df, cols_to_fill=None):
+        if cols_to_fill is None:
+            cols_to_fill = list(set(df.columns) - set(["id", "date", "mood_output", "mood"]))
+        # fill with median values
+        for col in cols_to_fill:
+            if col in df.columns:
+                df[col] = df[col].fillna(df[col].median())
+        return df
+
+    def build_daily_average_df(self, df, enable_ml_impute):
         # creating one data row for one day
         df["date"] = df["time"].dt.date
         daily_avg = df.groupby(["id", "date", "variable"])["value"].mean().unstack().reset_index()
         daily_avg =  daily_avg.sort_values(by=["id", "date"]).reset_index(drop=True)
         print('daily_avg', daily_avg.head())
-        return daily_avg
 
-    def build_predictive_dataset_from_cleaned(self, cleaned_df, window_size=5):
-        daily_avg = self.build_daily_average_df(cleaned_df)
+        if enable_ml_impute:
+            adv_imputed_daily_avg = DataCleaner.advanced_impute_missing_with_ml(daily_avg)
+        else:
+            adv_imputed_daily_avg = self.fill_null_values_with_median(daily_avg)
+        return adv_imputed_daily_avg
+
+    def build_predictive_dataset_from_cleaned(self, cleaned_df, enable_ml_impute, window_size=5):
+        daily_avg = self.build_daily_average_df(cleaned_df, enable_ml_impute)
         instance_rows = []
 
         # group rows by id, sort by date, build features
@@ -63,7 +79,26 @@ class FeatureMaker():
         df_instances = pd.DataFrame(instance_rows)
         return df_instances
 
-    def train_test_split(self, df, test_size=0.2, val_size=0.1):
+    def build_rnn_sequence_dataset(self, df_instances, enable_ml_impute, sequence_length=6):
+        daily_avg = self.build_daily_average_df(df_instances, enable_ml_impute)
+        feature_cols = [col for col in daily_avg.columns if col not in ["id", "date"]]
+        sequences = []
+        labels = []
+        for user_id, group in daily_avg.groupby("id"):
+            group = group.sort_values("date").reset_index(drop=True)
+            for i in range(len(group) - sequence_length + 1):
+                window = group.iloc[i:i + sequence_length]
+                if len(window) == sequence_length:
+                    input_features = window.iloc[:-1][feature_cols].values.astype(np.float32)
+                    last_day_features = window.iloc[-1][[col for col in feature_cols if col != "mood_output"]].values.astype(np.float32)
+                    input_features = np.vstack([input_features, last_day_features])
+                    output_label = int(window.iloc[-1]["mood_output"])
+                    sequences.append(input_features)
+                    labels.append(output_label)
+        return np.array(sequences), np.array(labels)
+
+    @staticmethod
+    def train_test_val_split(df, test_size=0.2, val_size=0.1):
         stratify_col = df['mood_output'] if 'mood_output' in df else None
         # train+val vs test
         train_val_df, test_df = train_test_split(
@@ -83,19 +118,23 @@ class FeatureMaker():
         )
         return train_df, val_df, test_df
 
-    def build_rnn_sequence_dataset(self, df_instances, sequence_length=6):
-        daily_avg = self.build_daily_average_df(df_instances)
-        feature_cols = [col for col in daily_avg.columns if col not in ["id", "date", "mood_output"]]
-        sequences = []
-        labels = []
-        for user_id, group in daily_avg.groupby("id"):
-            group = group.sort_values("date").reset_index(drop=True)
-            for i in range(len(group) - sequence_length + 1):
-                window = group.iloc[i:i + sequence_length]
-                if len(window) == sequence_length:
-                    X = window[feature_cols].values.astype(np.float32)
-                    y = int(window.iloc[-1]["mood_output"])
-                    sequences.append(X)
-                    labels.append(y)
-        return np.array(sequences), np.array(labels)
+    @staticmethod
+    def test_train_split_numpy_data(X, y, test_size=0.2, val_size=0.1):
+        train_val_x, test_x, train_val_y, test_y = train_test_split(
+            X, y, test_size=test_size, stratify=y, random_state=42
+        )
+        val_ratio_adjusted = val_size / (1 - test_size)
+        train_x, val_x, train_y, val_y = train_test_split(
+            train_val_x, train_val_y, test_size=val_ratio_adjusted, stratify=train_val_y, random_state=42
+        )
+        return train_x, val_x, test_x, train_y, val_y, test_y
 
+    @staticmethod
+    def train_test_split_regression(df, stratify_col='screen_t', test_size=0.2):
+        train_df, test_df = train_test_split(
+                                    df,
+                                    test_size=test_size,
+                                    stratify=stratify_col,
+                                    random_state=42
+                                )
+        return train_df, test_df
