@@ -98,6 +98,16 @@ class DataCleaner:
                     df[col] = df[col].fillna(0)
 
     @staticmethod
+    def fill_null_values_with_median(df, cols_to_fill=None):
+        if cols_to_fill is None:
+            cols_to_fill = list(set(df.columns) - set(["id", "date", "mood_output", "mood"]))
+        # fill with median values
+        for col in cols_to_fill:
+            if col in df.columns:
+                df[col] = df[col].fillna(df[col].median())
+        return df
+
+    @staticmethod
     def advanced_impute_missing_with_ml(df, columns=None):
         if columns is None:
             print(df.columns, 'df cols')

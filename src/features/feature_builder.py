@@ -17,15 +17,6 @@ class FeatureMaker():
         self.numerical_features = []
         self.duration_features = []
 
-    def fill_null_values_with_median(self, df, cols_to_fill=None):
-        if cols_to_fill is None:
-            cols_to_fill = list(set(df.columns) - set(["id", "date", "mood_output", "mood"]))
-        # fill with median values
-        for col in cols_to_fill:
-            if col in df.columns:
-                df[col] = df[col].fillna(df[col].median())
-        return df
-
     def build_daily_average_df(self, df, enable_ml_impute):
         # creating one data row for one day
         df["date"] = df["time"].dt.date
@@ -36,7 +27,7 @@ class FeatureMaker():
         if enable_ml_impute:
             adv_imputed_daily_avg = DataCleaner.advanced_impute_missing_with_ml(daily_avg)
         else:
-            adv_imputed_daily_avg = self.fill_null_values_with_median(daily_avg)
+            adv_imputed_daily_avg = DataCleaner.fill_null_values_with_median(daily_avg)
         return adv_imputed_daily_avg
 
     def build_predictive_dataset_from_cleaned(self, cleaned_df, enable_ml_impute, window_size=5):
