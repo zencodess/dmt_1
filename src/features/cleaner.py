@@ -22,6 +22,27 @@ class DataCleaner:
 
     locf_variables = ["mood", "circumplex.arousal", "circumplex.valence"]
     rolling_mean_variables = ["activity"] + duration_vars
+    all_variables = [
+        "mood",
+        "circumplex.arousal",
+        "circumplex.valence",
+        "activity",
+        "screen",
+        "call",
+        "sms",
+        "appCat.builtin",
+        "appCat.communication",
+        "appCat.entertainment",
+        "appCat.finance",
+        "appCat.game",
+        "appCat.office",
+        "appCat.other",
+        "appCat.social",
+        "appCat.travel",
+        "appCat.unknown",
+        "appCat.utilities",
+        "appCat.weather"
+    ]
     SIZE_ROLLING_WINDOW = 5
     MIN_PERIODS_IN_WINDOW = 1
 
@@ -68,6 +89,13 @@ class DataCleaner:
 
         clean_df = clean_df.dropna()
         return clean_df
+
+    @staticmethod
+    def fill_null_vars_with_zero(df):
+        for col in df.columns:
+            if col not in ['id', 'date', 'mood_output']:
+                if df[col].isnull().any():
+                    df[col] = df[col].fillna(0)
 
     @staticmethod
     def advanced_impute_missing_with_ml(df, columns=None):

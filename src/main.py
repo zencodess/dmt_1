@@ -65,7 +65,7 @@ class PredictMood():
         # train random forest classifier
         self.train_random_forest_classifier(enable_ml_impute=False)
         # train rnn classifier
-        # self.train_rnn_classifier(enable_ml_impute=False)
+        self.train_rnn_classifier(enable_ml_impute=False)
         # train regression models
         # insert code
 
