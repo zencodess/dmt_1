@@ -1,17 +1,16 @@
+import os
 import pandas as pd
-#from sklearn.ensemble import RandomForestClassifier
 
 from src.features.cleaner import DataCleaner
 from src.features.feature_builder import FeatureMaker
 
 from src.trainers.rnn_classifier import RNNClassifier
 from src.trainers.randomforest_classifier import RandomForest
-import os
+
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_DIR, 'data')
-
 
 
 class PredictMood():
@@ -69,13 +68,14 @@ class PredictMood():
     def run(self):
         self.read_data()
         self.clean_data()
-        self.rf_data_categorization_preparation(enable_ml_impute=False)
         
         # train random forest classifier
+        # self.rf_data_categorization_preparation(enable_ml_impute=False)
         # self.train_randomforest_classifier()        
        
         # train rnn classifier
         self.train_rnn_classifier(enable_ml_impute=False)
+
         # train regression models
         # insert code
 
