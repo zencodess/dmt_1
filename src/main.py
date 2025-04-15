@@ -34,7 +34,7 @@ class PredictMood():
         self.feature_maker.build_features(self.clean_df)
 
     def train_random_forest_classifier(self, enable_ml_impute=False):
-        self.rf_input_df = self.feature_maker.build_predictive_dataset_from_cleaned(self.clean_df, enable_ml_impute)
+        self.rf_input_df = self.feature_maker.build_non_temporal_dataset_from_cleaned(self.clean_df, enable_ml_impute)
         train_df, val_df, test_df = FeatureMaker.train_test_val_split(self.rf_input_df)
         if enable_ml_impute:
             file_suffix = "ml_imputed"
@@ -47,7 +47,7 @@ class PredictMood():
         # continue coding
 
     def train_rnn_classifier(self, enable_ml_impute=False):
-        self.rnn_seqs, self.rnn_labels = self.feature_maker.build_rnn_sequence_dataset(self.clean_df, enable_ml_impute)
+        self.rnn_seqs, self.rnn_labels = self.feature_maker.build_rnn_temporal_dataset(self.clean_df, enable_ml_impute)
         train_x, val_x, test_x, train_y, val_y, test_y = FeatureMaker.test_train_split_numpy_data(self.rnn_seqs, self.rnn_labels)
         input_dim_rnn = train_x.shape[2]
         self.rnn_classifier = RNNClassifier(input_dim_rnn)
@@ -55,7 +55,7 @@ class PredictMood():
         # continue to save model and test
 
     def train_regression_models(self, enable_ml_impute=False):
-        self.regression_df = self.feature_maker.build_predictive_dataset_from_cleaned(self.clean_df, enable_ml_impute)
+        self.regression_df = self.feature_maker.build_non_temporal_dataset_from_cleaned(self.clean_df, enable_ml_impute)
         self.regression_df.to_csv("data/regression_df.csv", index=False)
 
     def run(self):

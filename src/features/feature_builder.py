@@ -30,7 +30,7 @@ class FeatureMaker():
             adv_imputed_daily_avg = DataCleaner.fill_null_values_with_median(daily_avg)
         return adv_imputed_daily_avg
 
-    def build_predictive_dataset_from_cleaned(self, cleaned_df, enable_ml_impute, window_size=5):
+    def build_non_temporal_dataset_from_cleaned(self, cleaned_df, enable_ml_impute, window_size=5):
         daily_avg = self.build_daily_average_df(cleaned_df, enable_ml_impute)
         instance_rows = []
 
@@ -70,7 +70,7 @@ class FeatureMaker():
         df_instances = pd.DataFrame(instance_rows)
         return df_instances
 
-    def build_rnn_sequence_dataset(self, df_instances, enable_ml_impute, sequence_length=6):
+    def build_rnn_temporal_dataset(self, df_instances, enable_ml_impute, sequence_length=6):
         daily_avg = self.build_daily_average_df(df_instances, enable_ml_impute)
         feature_cols = [col for col in daily_avg.columns if col not in ["id", "date"]]
         sequences = []
