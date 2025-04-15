@@ -96,6 +96,7 @@ class DataCleaner:
             if col not in ['id', 'date', 'mood_output']:
                 if df[col].isnull().any():
                     df[col] = df[col].fillna(0)
+        return df
 
     @staticmethod
     def fill_null_values_with_median(df, cols_to_fill=None):
