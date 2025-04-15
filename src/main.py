@@ -37,7 +37,7 @@ class PredictMood():
     def feature_engineering(self):
         self.feature_maker.build_features(self.clean_df)
 
-    def data_categorization_preparation(self, enable_ml_impute=False):
+    def rf_data_categorization_preparation(self, enable_ml_impute=False):
         self.rf_input_df = self.feature_maker.build_predictive_dataset_from_cleaned(self.clean_df, enable_ml_impute)
         train_df, val_df, test_df = FeatureMaker.train_test_val_split(self.rf_input_df)
         if enable_ml_impute:
@@ -67,9 +67,9 @@ class PredictMood():
         self.regression_df.to_csv(DATA_PATH+"\\regression_df.csv", index=False)
 
     def run(self):
-        #self.read_data()
-        #self.clean_data()
-        #self.data_categorization_preparation(enable_ml_impute=False)
+        self.read_data()
+        self.clean_data()
+        self.rf_data_categorization_preparation(enable_ml_impute=False)
         self.train_randomforest_classifier()        
         # train random forest classifier
         # train rnn classifier
