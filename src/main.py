@@ -16,7 +16,7 @@ DATA_PATH = os.path.join(BASE_DIR, 'data')
 
 class PredictMood():
     def __init__(self):
-        self.input_data_path = DATA_PATH+'\\dataset_mood_smartphone.csv'
+        self.input_data_path = os.path.join(DATA_PATH,'dataset_mood_smartphone.csv')
         print(self.input_data_path)
         self.data = None
         self.clean_df = None
@@ -55,7 +55,7 @@ class PredictMood():
 
 
     def train_rnn_classifier(self, enable_ml_impute=False):
-        self.rnn_seqs, self.rnn_labels = self.feature_maker.build_rnn_sequence_dataset(self.clean_df, enable_ml_impute)
+        self.rnn_seqs, self.rnn_labels = self.feature_maker.build_rnn_temporal_dataset(self.clean_df, enable_ml_impute)
         train_x, val_x, test_x, train_y, val_y, test_y = FeatureMaker.test_train_split_numpy_data(self.rnn_seqs, self.rnn_labels)
         input_dim_rnn = train_x.shape[2]
         self.rnn_classifier = RNNClassifier(input_dim_rnn)
@@ -70,10 +70,12 @@ class PredictMood():
         self.read_data()
         self.clean_data()
         self.rf_data_categorization_preparation(enable_ml_impute=False)
-        self.train_randomforest_classifier()        
+        
         # train random forest classifier
+        # self.train_randomforest_classifier()        
+       
         # train rnn classifier
-        # self.train_rnn_classifier(enable_ml_impute=False)
+        self.train_rnn_classifier(enable_ml_impute=False)
         # train regression models
         # insert code
 
