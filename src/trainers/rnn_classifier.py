@@ -63,5 +63,23 @@ class RNNClassifier(torch_nn.Module):
         torch.save(self.state_dict(), "models/rnn_classifier.pth")
         print("RNN model saved to models/rnn_classifier.pth")
 
-    def test_rnn_model(self, test_x, test_y, device='cpu', epochs=20):
-        pass
+    def test_rnn_model(self, test_x, test_y, device='cpu'):
+        self.eval()
+        self.to(device)
+
+        test_dataset = TensorDataset(torch.tensor(test_x), torch.tensor(test_y).float())
+        test_loader = DataLoader(test_dataset, batch_size=32)
+
+        all_preds, all_labels = [], []
+        with torch.no_grad():
+            for xb, yb in test_loader:
+                xb = xb.to(device)
+                pred = self(xb)
+                prob = torch.sigmoid(pred).cpu().numpy()
+                preds = np.round(prob)
+                all_preds.extend(preds)
+                all_labels.extend(yb.numpy())
+
+        f1 = f1_score(all_labels, all_preds)
+        auc = roc_auc_score(all_labels, all_preds)
+        print(f"Test Results — F1: {f1:.4f}, AUC: {auc:.4f}")
