@@ -114,6 +114,14 @@ class DataCleaner:
             print(df.columns, 'df cols')
             # columns = df.columns - set(["id", "mood_output", "mood", "date"])
             columns = list(set(df.columns) - {"id", "mood_output", "mood", "date"})
-        imputer = IterativeImputer(estimator=RandomForestRegressor(), random_state=42, max_iter=10)
+        imputer = IterativeImputer(estimator=RandomForestRegressor(), random_state=42, max_iter=25)
         df[columns] = imputer.fit_transform(df[columns])
+        return df
+
+    @staticmethod
+    def advanced_impute_linear_interpolator(df, columns=None):
+        if columns is None:
+            columns = list(set(df.columns) - {"id", "mood_output", "mood", "date"})
+        for col in columns:
+            df[col] = df[col].interpolate(method='cubicspline')
         return df
