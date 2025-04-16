@@ -19,7 +19,7 @@ class RNNClassifier(torch_nn.Module):
         out = self.dense(out[:, -1, :])
         return out.squeeze()
 
-    def train_rnn_model(self, train_x, train_y, val_x, val_y, device='cpu', epochs=200, batch_size=32, lr=0.0001):
+    def train_rnn_model(self, train_x, train_y, val_x, val_y, device='cpu', epochs=500, batch_size=32, lr=0.0001):
         self.to(device)
         print("Train label balance:", np.bincount(train_y))
         print("Val label balance:", np.bincount(val_y))
