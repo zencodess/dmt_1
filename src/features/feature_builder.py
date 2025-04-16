@@ -20,8 +20,6 @@ class FeatureMaker():
     def build_daily_average_df(self, df, enable_ml_impute):
         # creating one data row for one day
         df["date"] = df["time"].dt.date
-        # daily_avg = df.groupby(["id", "date", "variable"])["value"].mean().unstack().reset_index()
-        daily_avg = df.fillna(0)
         daily_avg = df.pivot_table(
             index=["id", "date"],
             columns="variable",
@@ -72,7 +70,7 @@ class FeatureMaker():
                 # target - mood at day t
                 if "mood" in target_row:
                     mood = target_row["mood"]
-                    row["mood_output"] = 1 if mood >= 7 else 0
+                    row["mood_output"] = 1 if mood >= 7 else 0  # gives good balance of classes now, Train label balance: [797 546] Val label balance: [114  78]
                 instance_rows.append(row)
         df_instances = pd.DataFrame(instance_rows)
         return df_instances
@@ -103,7 +101,6 @@ class FeatureMaker():
                         pad_width = input_features.shape[1] - last_day_features.shape[1]
                         last_day_features = np.pad(last_day_features, ((0, 0), (0, pad_width)), mode='constant')
                     input_features = np.vstack([input_features, last_day_features])
-                    # input_features = np.vstack([input_features, last_day_features])
                     output_label = int(window.iloc[-1]["mood_output"])
                     sequences.append(input_features)
                     labels.append(output_label)

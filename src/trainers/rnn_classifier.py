@@ -13,19 +13,6 @@ class RNNClassifier(torch_nn.Module):
         self.input_dim = input_dim
         self.rnn = torch_nn.LSTM(input_dim, hidden_dim, num_layers=num_layers, batch_first=True, dropout=dropout)
         self.dense = torch_nn.Linear(hidden_dim, 1)
-        # self.sigmoid = torch_nn.Sigmoid()
-        # self.model = None
-
-    # def forward(self, x):
-    #     out, _ = self.rnn(x)
-    #     out = out[:, -1, :]  # use last time step
-    #     out = self.dense(out)
-    #     return self.sigmoid(out).squeeze()
-
-    # def forward(self, x):
-    #     out, _ = self.rnn(x)
-    #     out = self.dense(out[:, -1, :])
-    #     return torch.sigmoid(out).squeeze()
 
     def forward(self, x):
         out, _ = self.rnn(x)
@@ -36,9 +23,7 @@ class RNNClassifier(torch_nn.Module):
         self.to(device)
         print("Train label balance:", np.bincount(train_y))
         print("Val label balance:", np.bincount(val_y))
-        print("NaNs in val_x:", np.isnan(val_x).sum())
         optimizer = optim.Adam(self.parameters(), lr=lr)
-        # criterion = torch_nn.BCELoss()
         criterion = torch_nn.BCEWithLogitsLoss()
 
         train_dataset = TensorDataset(torch.tensor(train_x), torch.tensor(train_y).float())
@@ -67,17 +52,11 @@ class RNNClassifier(torch_nn.Module):
                     prob = torch.sigmoid(pred).cpu().numpy()
                     preds = np.round(prob)
                     all_preds.extend(preds)
-
-                    # pred = self(xb).cpu().numpy()
-                    # pred = torch.round(torch.sigmoid(pred))
-                    # all_preds.extend(pred)
                     all_labels.extend(yb.numpy())
 
-            # all_preds = [1 if p >= 0.5 else 0 for p in all_preds]
             f1 = f1_score(all_labels, all_preds)
             auc = roc_auc_score(all_labels, all_preds)
             print(f"Epoch {epoch + 1}: F1 = {f1:.4f}, AUC = {auc:.4f}")
-        # self.model = model
         self.save_model()
 
     def save_model(self):
