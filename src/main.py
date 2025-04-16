@@ -36,10 +36,10 @@ class PredictMood():
     def feature_engineering(self):
         self.feature_maker.build_features(self.clean_df)
 
-    def rf_data_categorization_preparation(self, enable_ml_impute=False):
-        self.rf_input_df = self.feature_maker.build_non_temporal_dataset_from_cleaned(self.clean_df, enable_ml_impute)
+    def rf_data_categorization_preparation(self, impute_option='MEDIAN_IMPUTE'):
+        self.rf_input_df = self.feature_maker.build_non_temporal_dataset_from_cleaned(self.clean_df, impute_option)
         train_df, val_df, test_df = FeatureMaker.train_test_val_split(self.rf_input_df)
-        if enable_ml_impute:
+        if impute_option == 'ML_IMPUTE':
             file_suffix = "ml_imputed"
         else:
             file_suffix = ""
@@ -53,8 +53,8 @@ class PredictMood():
         self.RandomForestInstance.test()
 
 
-    def train_rnn_classifier(self, enable_ml_impute=False):
-        self.rnn_seqs, self.rnn_labels = self.feature_maker.build_rnn_temporal_dataset(self.clean_df, enable_ml_impute)
+    def train_rnn_classifier(self, impute_option='MEDIAN_IMPUTE'):
+        self.rnn_seqs, self.rnn_labels = self.feature_maker.build_rnn_temporal_dataset(self.clean_df, impute_option)
         train_x, val_x, test_x, train_y, val_y, test_y = FeatureMaker.test_train_split_numpy_data(self.rnn_seqs, self.rnn_labels)
         input_dim_rnn = train_x.shape[2]
         self.rnn_classifier = RNNClassifier(input_dim_rnn)
@@ -62,8 +62,8 @@ class PredictMood():
         # continue to save model and test
         self.rnn_classifier.test_rnn_model(test_x, test_y)
 
-    def train_regression_models(self, enable_ml_impute=False):
-        self.regression_df = self.feature_maker.build_predictive_dataset_from_cleaned(self.clean_df, enable_ml_impute)
+    def train_regression_models(self, impute_option='MEDIAN_IMPUTE'):
+        self.regression_df = self.feature_maker.build_predictive_dataset_from_cleaned(self.clean_df, impute_option)
         self.regression_df.to_csv(os.path.join(DATA_PATH,"regression_df.csv"), index=False)
 
     def run(self):
@@ -71,11 +71,11 @@ class PredictMood():
         self.clean_data()
         
         # train random forest classifier
-        # self.rf_data_categorization_preparation(enable_ml_impute=False)
+        # self.rf_data_categorization_preparation(impute_option='MEDIAN_IMPUTE')
         # self.train_randomforest_classifier()        
        
         # train rnn classifier
-        self.train_rnn_classifier(enable_ml_impute=False)
+        self.train_rnn_classifier(impute_option='INTERPOLATE_IMPUTE')
 
         # train regression models
         # insert code

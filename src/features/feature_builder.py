@@ -5,6 +5,11 @@ from sklearn.model_selection import train_test_split
 from src.features.cleaner import DataCleaner
 
 
+ML_IMPUTE = 'ML_IMPUTE'
+MEDIAN_IMPUTE = 'MEDIAN_IMPUTE'
+ZERO_IMPUTE = 'ZERO_IMPUTE'
+INTERPOLATE_IMPUTE = 'INTERPOLATE_IMPUTE'
+
 class FeatureMaker():
     def __init__(self, df=None):
         self.df = df
@@ -17,7 +22,7 @@ class FeatureMaker():
         self.numerical_features = []
         self.duration_features = []
 
-    def build_daily_average_df(self, df, enable_ml_impute):
+    def build_daily_average_df(self, df, impute_option):
         # creating one data row for one day
         df["date"] = df["time"].dt.date
         daily_avg = df.pivot_table(
@@ -29,15 +34,21 @@ class FeatureMaker():
         daily_avg =  daily_avg.sort_values(by=["id", "date"]).reset_index(drop=True)
         print('daily_avg', daily_avg.head())
 
-        if enable_ml_impute:
+        if impute_option == ML_IMPUTE:
             adv_imputed_daily_avg = DataCleaner.advanced_impute_missing_with_ml(daily_avg)
-        else:
+        elif impute_option == MEDIAN_IMPUTE:
             adv_imputed_daily_avg = DataCleaner.fill_null_values_with_median(daily_avg)
+        elif impute_option == INTERPOLATE_IMPUTE:
+            adv_imputed_daily_avg = DataCleaner.advanced_impute_linear_interpolator(daily_avg)
+        elif impute_option == ZERO_IMPUTE:
+            adv_imputed_daily_avg = DataCleaner.fill_null_values_with_median(daily_avg)
+
+        # in the end, if any null values still exist, replace them with zero for safety
         adv_imputed_daily_avg = DataCleaner.fill_null_vars_with_zero(adv_imputed_daily_avg)
         return adv_imputed_daily_avg
 
-    def build_non_temporal_dataset_from_cleaned(self, cleaned_df, enable_ml_impute, window_size=2):
-        daily_avg = self.build_daily_average_df(cleaned_df, enable_ml_impute)
+    def build_non_temporal_dataset_from_cleaned(self, cleaned_df, impute_option, window_size=2):
+        daily_avg = self.build_daily_average_df(cleaned_df, impute_option)
         instance_rows = []
 
         # group rows by id, sort by date, build features
@@ -82,8 +93,9 @@ class FeatureMaker():
         df["mood_output"] = df["mood"].apply(lambda x: 1 if x >= mood_median else 0)
         return df
 
-    def build_rnn_temporal_dataset(self, df_instances, enable_ml_impute, sequence_length=3):
-        daily_avg = self.build_daily_average_df(df_instances, enable_ml_impute)
+
+    def build_rnn_temporal_dataset(self, df_instances, impute_option, sequence_length=3):
+        daily_avg = self.build_daily_average_df(df_instances, impute_option)
         daily_avg = FeatureMaker.categorize_mood_col(daily_avg)
         feature_cols = [col for col in daily_avg.columns if col not in ["id", "date"]]
         sequences = []
