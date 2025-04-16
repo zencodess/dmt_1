@@ -37,7 +37,7 @@ class PredictMood():
         self.feature_maker.build_features(self.clean_df)
 
     def rf_data_categorization_preparation(self, enable_ml_impute=False):
-        self.rf_input_df = self.feature_maker.build_predictive_dataset_from_cleaned(self.clean_df, enable_ml_impute)
+        self.rf_input_df = self.feature_maker.build_non_temporal_dataset_from_cleaned(self.clean_df, enable_ml_impute)
         train_df, val_df, test_df = FeatureMaker.train_test_val_split(self.rf_input_df)
         if enable_ml_impute:
             file_suffix = "ml_imputed"
