@@ -20,7 +20,12 @@ class FeatureMaker():
     def build_daily_average_df(self, df, enable_ml_impute):
         # creating one data row for one day
         df["date"] = df["time"].dt.date
-        daily_avg = df.groupby(["id", "date", "variable"])["value"].mean().unstack().reset_index()
+        daily_avg = df.pivot_table(
+            index=["id", "date"],
+            columns="variable",
+            values="value",
+            aggfunc="mean"
+        ).reset_index()
         daily_avg =  daily_avg.sort_values(by=["id", "date"]).reset_index(drop=True)
         print('daily_avg', daily_avg.head())
 
@@ -28,9 +33,10 @@ class FeatureMaker():
             adv_imputed_daily_avg = DataCleaner.advanced_impute_missing_with_ml(daily_avg)
         else:
             adv_imputed_daily_avg = DataCleaner.fill_null_values_with_median(daily_avg)
+        adv_imputed_daily_avg = DataCleaner.fill_null_vars_with_zero(adv_imputed_daily_avg)
         return adv_imputed_daily_avg
 
-    def build_non_temporal_dataset_from_cleaned(self, cleaned_df, enable_ml_impute, window_size=5):
+    def build_non_temporal_dataset_from_cleaned(self, cleaned_df, enable_ml_impute, window_size=2):
         daily_avg = self.build_daily_average_df(cleaned_df, enable_ml_impute)
         instance_rows = []
 
@@ -65,13 +71,20 @@ class FeatureMaker():
                 # target - mood at day t
                 if "mood" in target_row:
                     mood = target_row["mood"]
-                    row["mood_output"] = 1 if mood >= 5 else 0
+                    row["mood_output"] = 1 if mood >= 7 else 0  # gives good balance of classes now, Train label balance: [797 546] Val label balance: [114  78]
                 instance_rows.append(row)
         df_instances = pd.DataFrame(instance_rows)
         return df_instances
 
-    def build_rnn_temporal_dataset(self, df_instances, enable_ml_impute, sequence_length=6):
+    @staticmethod
+    def categorize_mood_col(df):
+        mood_median = df["mood"].median()
+        df["mood_output"] = df["mood"].apply(lambda x: 1 if x >= mood_median else 0)
+        return df
+
+    def build_rnn_temporal_dataset(self, df_instances, enable_ml_impute, sequence_length=3):
         daily_avg = self.build_daily_average_df(df_instances, enable_ml_impute)
+        daily_avg = FeatureMaker.categorize_mood_col(daily_avg)
         feature_cols = [col for col in daily_avg.columns if col not in ["id", "date"]]
         sequences = []
         labels = []
@@ -82,6 +95,11 @@ class FeatureMaker():
                 if len(window) == sequence_length:
                     input_features = window.iloc[:-1][feature_cols].values.astype(np.float32)
                     last_day_features = window.iloc[-1][[col for col in feature_cols if col != "mood_output"]].values.astype(np.float32)
+                    last_day_features = last_day_features.reshape(1, -1)
+                    if last_day_features.shape[1] < input_features.shape[1]:
+                        # pad last_day_features with zeros to match input_features width
+                        pad_width = input_features.shape[1] - last_day_features.shape[1]
+                        last_day_features = np.pad(last_day_features, ((0, 0), (0, pad_width)), mode='constant')
                     input_features = np.vstack([input_features, last_day_features])
                     output_label = int(window.iloc[-1]["mood_output"])
                     sequences.append(input_features)

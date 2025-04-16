@@ -60,6 +60,7 @@ class PredictMood():
         self.rnn_classifier = RNNClassifier(input_dim_rnn)
         self.rnn_classifier.train_rnn_model(train_x, train_y, val_x, val_y)
         # continue to save model and test
+        self.rnn_classifier.test_rnn_model(test_x, test_y)
 
     def train_regression_models(self, enable_ml_impute=False):
         self.regression_df = self.feature_maker.build_predictive_dataset_from_cleaned(self.clean_df, enable_ml_impute)
