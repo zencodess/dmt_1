@@ -32,7 +32,7 @@ class FeatureMaker():
             aggfunc="mean"
         ).reset_index()
         daily_avg =  daily_avg.sort_values(by=["id", "date"]).reset_index(drop=True)
-        print('daily_avg', daily_avg.head())
+        #print('daily_avg', daily_avg.head())
 
         if impute_option == ML_IMPUTE:
             adv_imputed_daily_avg = DataCleaner.advanced_impute_missing_with_ml(daily_avg)
@@ -41,7 +41,7 @@ class FeatureMaker():
         elif impute_option == INTERPOLATE_IMPUTE:
             adv_imputed_daily_avg = DataCleaner.advanced_impute_linear_interpolator(daily_avg)
         elif impute_option == ZERO_IMPUTE:
-            adv_imputed_daily_avg = DataCleaner.fill_null_values_with_median(daily_avg)
+            adv_imputed_daily_avg = DataCleaner.fill_null_vars_with_zero(daily_avg)
 
         # in the end, if any null values still exist, replace them with zero for safety
         adv_imputed_daily_avg = DataCleaner.fill_null_vars_with_zero(adv_imputed_daily_avg)
