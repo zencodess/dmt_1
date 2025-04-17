@@ -82,8 +82,9 @@ class DataCleaner:
         df = cls.apply_variable_accepted_ranges(df)
         df["time"] = pd.to_datetime(df["time"])
         df = df.sort_values(by=["id", "variable", "time"]).reset_index(drop=True)
-        clean_df = df.groupby(["id", "variable"], group_keys=False)
-        clean_df = clean_df.apply(cls.log_transform_duration_columns)
+        # clean_df = df.groupby(["id", "variable"], group_keys=False)
+        clean_df = cls.log_transform_duration_columns(df)
+        clean_df = cls.scale_arousal_valence(clean_df)
         # df_imputed = df.groupby(["id", "variable"], group_keys=False).apply(cls.impute_variable)
         #
         # global_means = df_imputed.groupby("variable")["value"].mean()
@@ -167,5 +168,15 @@ class DataCleaner:
             cols = cls.duration_vars
         for col in cols:
             if col in df.columns:
+                print(f"Log transform duration column: {col}")
                 df[col] = df[col].apply(lambda x: pd.NA if pd.isna(x) else (0 if x <= 0 else np.log1p(x)))
+        return df
+
+    @classmethod
+    def scale_arousal_valence(cls, df):
+        for col in ["circumplex.arousal", "circumplex.valence"]:
+            if col in df.columns:
+                mean = df[col].mean()
+                std = df[col].std()
+                df[col] = (df[col] - mean) / std
         return df

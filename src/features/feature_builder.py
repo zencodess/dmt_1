@@ -32,7 +32,7 @@ class FeatureMaker():
             aggfunc="mean"
         ).reset_index()
         daily_avg =  daily_avg.sort_values(by=["id", "date"]).reset_index(drop=True)
-        print('daily_avg', daily_avg.head())
+        #print('daily_avg', daily_avg.head())
 
         if impute_option == ML_IMPUTE:
             # adv_imputed_daily_avg = DataCleaner.advanced_impute_missing_with_ml(daily_avg)
@@ -43,7 +43,7 @@ class FeatureMaker():
         elif impute_option == INTERPOLATE_IMPUTE:
             adv_imputed_daily_avg = DataCleaner.advanced_impute_linear_interpolator(daily_avg)
         elif impute_option == ZERO_IMPUTE:
-            adv_imputed_daily_avg = DataCleaner.fill_null_values_with_median(daily_avg)
+            adv_imputed_daily_avg = DataCleaner.fill_null_vars_with_zero(daily_avg)
 
         # in the end, if any null values still exist, replace them with zero for safety
         adv_imputed_daily_avg = DataCleaner.fill_null_vars_with_zero(adv_imputed_daily_avg)
@@ -96,10 +96,15 @@ class FeatureMaker():
         return df
 
     def build_rnn_temporal_dataset(self, df_instances, impute_option):
-        results = self.build_daily_average_df(df_instances, impute_option)
-        for impute_method, daily_avg in results.items():
-            daily_avg = DataCleaner.fill_null_vars_with_zero(daily_avg)
+        if impute_option == ML_IMPUTE:
+            results = self.build_daily_average_df(df_instances, impute_option)
+            for impute_method, daily_avg in results.items():
+                daily_avg = DataCleaner.fill_null_vars_with_zero(daily_avg)
+                yield self.daily_avg_to_numpy_seqs(daily_avg)
+        else:
+            daily_avg = self.build_daily_average_df(df_instances, impute_option)
             yield self.daily_avg_to_numpy_seqs(daily_avg)
+
 
     def daily_avg_to_numpy_seqs(self, daily_avg, sequence_length=6):
         daily_avg = FeatureMaker.categorize_mood_col(daily_avg)
