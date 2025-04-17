@@ -1,8 +1,9 @@
 import pandas as pd
+import numpy as np
 
 from sklearn.experimental import enable_iterative_imputer  # noqa
 from sklearn.impute import IterativeImputer
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, HistGradientBoostingRegressor
 
 
 class DataCleaner:
@@ -81,13 +82,14 @@ class DataCleaner:
         df = cls.apply_variable_accepted_ranges(df)
         df["time"] = pd.to_datetime(df["time"])
         df = df.sort_values(by=["id", "variable", "time"]).reset_index(drop=True)
-
-        df_imputed = df.groupby(["id", "variable"], group_keys=False).apply(cls.impute_variable)
-
-        global_means = df_imputed.groupby("variable")["value"].mean()
-        clean_df = df_imputed.groupby("variable", group_keys=False).apply(lambda g: cls.fill_remaining_na(g, global_means))
-
-        clean_df = clean_df.dropna()
+        clean_df = df.groupby(["id", "variable"], group_keys=False)
+        clean_df = clean_df.apply(cls.log_transform_duration_columns)
+        # df_imputed = df.groupby(["id", "variable"], group_keys=False).apply(cls.impute_variable)
+        #
+        # global_means = df_imputed.groupby("variable")["value"].mean()
+        # clean_df = df_imputed.groupby("variable", group_keys=False).apply(lambda g: cls.fill_remaining_na(g, global_means))
+        #
+        # clean_df = clean_df.dropna()
         return clean_df
 
     @staticmethod
@@ -124,4 +126,46 @@ class DataCleaner:
             columns = list(set(df.columns) - {"id", "mood_output", "mood", "date"})
         for col in columns:
             df[col] = df[col].interpolate(method='cubicspline')
+        return df
+
+    @staticmethod
+    def ml_impute_experiments(df, columns=None):
+        from sklearn.linear_model import BayesianRidge
+        from sklearn.ensemble import RandomForestRegressor
+        from sklearn.impute import IterativeImputer
+        from sklearn.pipeline import make_pipeline
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.kernel_approximation import Nystroem
+        from sklearn.neighbors import KNeighborsRegressor
+
+        if columns is None:
+            columns = list(set(df.columns) - {"id", "mood_output", "mood", "date"})
+
+        strategies = {
+            "BayesianRidge": make_pipeline(StandardScaler(), BayesianRidge()),
+            "RandomForest": HistGradientBoostingRegressor(), #n_estimators=10, random_state=42),
+             "KNN": make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=10)),
+            "RBF+Ridge": make_pipeline(Nystroem(gamma=0.1, n_components=150), BayesianRidge())
+        }
+
+        results = {}
+        for name, estimator in strategies.items():
+            print(f"\nRunning imputation with: {name}")
+            imputer = IterativeImputer(estimator=estimator, max_iter=10, random_state=42, verbose=1)
+            df_copy = df.copy()
+            try:
+                df_copy[columns] = imputer.fit_transform(df_copy[columns])
+                results[name] = df_copy
+                print(f"Imputation with {name} complete.")
+            except Exception as e:
+                print(f"Imputation with {name} failed: {e}")
+        return results
+
+    @classmethod
+    def log_transform_duration_columns(cls, df, cols=None):
+        if cols is None:
+            cols = cls.duration_vars
+        for col in cols:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: pd.NA if pd.isna(x) else (0 if x <= 0 else np.log1p(x)))
         return df

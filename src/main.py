@@ -4,7 +4,7 @@ import pandas as pd
 from src.features.cleaner import DataCleaner
 from src.features.feature_builder import FeatureMaker
 
-from src.trainers.rnn_classifier import RNNClassifier
+from src.trainers.rnn_classifier import RNNClassifier, AttentionLSTM
 from src.trainers.randomforest_classifier import RandomForest
 
 
@@ -52,12 +52,14 @@ class PredictMood():
         self.RandomForestInstance=RandomForest()
         self.RandomForestInstance.test()
 
+    def rnn_classifier_run(self, impute_option='MEDIAN_IMPUTE'):
+        for seqs, labels in self.feature_maker.build_rnn_temporal_dataset(self.clean_df, impute_option):
+            self.train_rnn_classifier(seqs, labels)
 
-    def train_rnn_classifier(self, impute_option='MEDIAN_IMPUTE'):
-        self.rnn_seqs, self.rnn_labels = self.feature_maker.build_rnn_temporal_dataset(self.clean_df, impute_option)
-        train_x, val_x, test_x, train_y, val_y, test_y = FeatureMaker.test_train_split_numpy_data(self.rnn_seqs, self.rnn_labels)
+    def train_rnn_classifier(self, rnn_seqs, rnn_labels):
+        train_x, val_x, test_x, train_y, val_y, test_y = FeatureMaker.test_train_split_numpy_data(rnn_seqs, rnn_labels)
         input_dim_rnn = train_x.shape[2]
-        self.rnn_classifier = RNNClassifier(input_dim_rnn)
+        self.rnn_classifier = AttentionLSTM(input_dim_rnn)
         self.rnn_classifier.train_rnn_model(train_x, train_y, val_x, val_y)
         # continue to save model and test
         self.rnn_classifier.test_rnn_model(test_x, test_y)
@@ -72,10 +74,10 @@ class PredictMood():
         
         # train random forest classifier
         # self.rf_data_categorization_preparation(impute_option='MEDIAN_IMPUTE')
-        # self.train_randomforest_classifier()        
+        # self.train_randomforest_classifier()
        
         # train rnn classifier
-        self.train_rnn_classifier(impute_option='INTERPOLATE_IMPUTE')
+        self.rnn_classifier_run(impute_option='ML_IMPUTE')
 
         # train regression models
         # insert code
