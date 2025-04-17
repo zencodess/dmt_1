@@ -10,31 +10,65 @@ from sklearn.tree import export_graphviz
 from IPython.display import Image
 import graphviz
 import os
+import joblib
+import matplotlib.pyplot as plt
+
+
+DATA_PATH=os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','data')
+MODEL_PATH=os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','models')
+ML_IMPUTE = 'ML_IMPUTE'
+MEDIAN_IMPUTE = 'MEDIAN_IMPUTE'
+ZERO_IMPUTE = 'ZERO_IMPUTE'
+INTERPOLATE_IMPUTE = 'INTERPOLATE_IMPUTE'
+
 
 
 class RandomForest():
-    def test(self):
-        file_path=os.path.join(os.path.dirname(__file__),'..','data','rf_input_df.csv')
-        clean_data=pd.read_csv(file_path)
-        
-        print(clean_data.shape[0])
-                
-        X = clean_data[[ 'appCat.weather_sum_hist','appCat.social_sum_hist', 'appCat.finance_sum_hist', 'appCat.entertainment_sum_hist','appCat.communication_sum_hist','circumplex.arousal_mean_hist']]
-        Y = clean_data[['mood_output']].values.ravel()
-        
+    def modeltraining(self,clean_data,impute_option='MEDIAN_IMPUTE'):
+        print("Random Forest Model for Dataset cleaned with imlute option: ",impute_option)
+        X=clean_data.drop(['mood_output','id','date'], axis=1)
+        Y=clean_data[['mood_output']].values.ravel()
         X_train,X_test,Y_train,Y_test=train_test_split(X,Y,test_size=0.2,random_state=42)
-
         print(clean_data[['mood_output']].value_counts(normalize=True))
-
-        rf=RandomForestClassifier(class_weight='balanced')
+        rf=RandomForestClassifier(random_state=2) #A simple random forest that uses all columns
         rf.fit(X_train,Y_train)
-
-        Y_pred=rf.predict(X_test)
-
-        accuracy=accuracy_score(Y_test,Y_pred)
+        feature_importances = pd.Series(rf.feature_importances_, index=X_train.columns).sort_values(ascending=False) #Get the important features
+        #print(feature_importances)
+        feature_importances.plot.bar()
+        #plt.show()
+        X=clean_data[['circumplex.arousal_std_hist','circumplex.valence_t','appCat.builtin_std_hist','screen_std_hist','appCat.communication_std_hist']]
+        Y=clean_data[['mood_output']].values.ravel()
+        X_train,X_test,Y_train,Y_test=train_test_split(X,Y,test_size=0.2,random_state=42)
+        hyperparameter_values={
+            'n_estimators'      : randint(50,200), #Slower as the value increases
+            'max_depth'         : randint(10,20), #Reduce overfitting as it decreases
+            'min_samples_leaf'  : randint(1,10), #Reduces overfitting as it increases, more general
+            'random_state'      : randint(2,24) #Ensure the same variables are used when running the model, so that there is no ambiguity in the prediction
+        }
+        rf=RandomForestClassifier() #class_weight='balanced', #This is not required as we have an almost evenly split classification so the number of 0 occurences is relatively similar to the number of 1 occurences. 
+        rand_search=RandomizedSearchCV(rf,param_distributions=hyperparameter_values,n_iter=5,cv=5)
+        rand_search.fit(X_train,Y_train)
+        best_rf = rand_search.best_estimator_
+        print(best_rf)
+        self.modelsave(best_rf)
+        self.testmodel(X_test,Y_test)
+            
         
-        print(confusion_matrix(Y_test, Y_pred))
-#        print(classification_report(Y_test, y_pred, digits=4))
-
-        print("Accuracy: ",accuracy)
+    def modelsave(self,rf):
+        joblib.dump(rf,os.path.join(MODEL_PATH,'randomforest.joblib'))
+        
+    
+    def testmodel(self,X_test,Y_test):
+        saved_model=joblib.load(os.path.join(MODEL_PATH,'randomforest.joblib'))
+        Y_pred=saved_model.predict(X_test)
+        accuracy=accuracy_score(Y_test,Y_pred) #Correct answer predicted : happy person is happy and sad person is sad.
+        precision = precision_score(Y_test,Y_pred) #When predicted happy how many times was the model right?
+        recall = recall_score(Y_test,Y_pred) #Of all happy people who were correctly identified?      
+        print("Accuracy: ",accuracy) 
+        print("Precision: ",precision)
+        print("Recall: ",recall)
+        cm=confusion_matrix(Y_test, Y_pred)#Shows the tp,fp,tn,fn
+        print(cm)
+        #ConfusionMatrixDisplay(confusion_matrix=cm).plot()
+        #plt.show()
 
