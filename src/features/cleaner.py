@@ -83,8 +83,8 @@ class DataCleaner:
         df["time"] = pd.to_datetime(df["time"])
         df = df.sort_values(by=["id", "variable", "time"]).reset_index(drop=True)
         # clean_df = df.groupby(["id", "variable"], group_keys=False)
-        # clean_df = cls.log_transform_duration_columns(df)
-        # clean_df = cls.scale_arousal_valence(clean_df)
+        clean_df = cls.log_transform_duration_columns(df)
+        clean_df = cls.scale_arousal_valence(clean_df)
 
         # df_imputed = df.groupby(["id", "variable"], group_keys=False).apply(cls.impute_variable)
         #
@@ -92,7 +92,7 @@ class DataCleaner:
         # clean_df = df_imputed.groupby("variable", group_keys=False).apply(lambda g: cls.fill_remaining_na(g, global_means))
         #
         # clean_df = clean_df.dropna()
-        return df#clean_df
+        return clean_df
 
     @staticmethod
     def fill_null_vars_with_zero(df):
