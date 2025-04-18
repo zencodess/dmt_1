@@ -3,27 +3,21 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from src.features.cleaner import DataCleaner
+from src.utils.const import EXP_ML_IMPUTE, ML_IMPUTE, MEDIAN_IMPUTE, ZERO_IMPUTE, INTERPOLATE_IMPUTE, DURATION_VARS, \
+    CATEGORICAL_VARS, NUMERICAL_VARS, LOCF_ROLLING_MEAN_IMPUTE, RBF_BAYESIAN_RIDGE
 
-
-EXP_ML_IMPUTE = 'EXP_ML_IMPUTE'
-ML_IMPUTE = 'ML_IMPUTE'
-MEDIAN_IMPUTE = 'MEDIAN_IMPUTE'
-ZERO_IMPUTE = 'ZERO_IMPUTE'
-INTERPOLATE_IMPUTE = 'INTERPOLATE_IMPUTE'
 
 class FeatureMaker():
     def __init__(self, df=None):
         self.df = df
-        self.categorical_variables = ["call", "sms"]
-        self.numerical_variables = ["circumplex.arousal", "circumplex.valence", "activity"]
-        self.duration_variables = ["screen", "appCat.builtin", "appCat.communication", "appCat.entertainment",
-        "appCat.finance", "appCat.game", "appCat.office", "appCat.other", "appCat.social",
-        "appCat.travel", "appCat.unknown", "appCat.utilities", "appCat.weather"]
+        self.categorical_variables = CATEGORICAL_VARS
+        self.numerical_variables = NUMERICAL_VARS
+        self.duration_variables = DURATION_VARS
         self.categorical_features = []
         self.numerical_features = []
         self.duration_features = []
 
-    def build_daily_average_df(self, df, impute_option):
+    def build_daily_average_df(self, df, impute_option, impute_strategy=RBF_BAYESIAN_RIDGE):
         # creating one data row for one day
         df["date"] = df["time"].dt.date
         daily_avg = df.pivot_table(
@@ -33,26 +27,27 @@ class FeatureMaker():
             aggfunc="mean"
         ).reset_index()
         daily_avg =  daily_avg.sort_values(by=["id", "date"]).reset_index(drop=True)
-        #print('daily_avg', daily_avg.head())
 
         if impute_option == EXP_ML_IMPUTE:
             impute_results = DataCleaner.ml_impute_experiments(daily_avg)
             return impute_results
         elif impute_option == ML_IMPUTE:
-            adv_imputed_daily_avg = DataCleaner.advanced_impute_missing_with_ml(daily_avg)
+            adv_imputed_daily_avg = DataCleaner.advanced_impute_missing_with_ml(daily_avg, impute_strategy)
         elif impute_option == MEDIAN_IMPUTE:
             adv_imputed_daily_avg = DataCleaner.fill_null_values_with_median(daily_avg)
         elif impute_option == INTERPOLATE_IMPUTE:
             adv_imputed_daily_avg = DataCleaner.advanced_impute_linear_interpolator(daily_avg)
         elif impute_option == ZERO_IMPUTE:
             adv_imputed_daily_avg = DataCleaner.fill_null_vars_with_zero(daily_avg)
+        elif impute_option == LOCF_ROLLING_MEAN_IMPUTE:
+            adv_imputed_daily_avg = DataCleaner.locf_rolling_mean_impute_dataframe(daily_avg)
 
         # in the end, if any null values still exist, replace them with zero for safety
         adv_imputed_daily_avg = DataCleaner.fill_null_vars_with_zero(adv_imputed_daily_avg)
         return adv_imputed_daily_avg
 
-    def build_non_temporal_dataset_from_cleaned(self, cleaned_df, impute_option, window_size=5):
-        daily_avg = self.build_daily_average_df(cleaned_df, impute_option)
+    def build_non_temporal_dataset_from_cleaned(self, cleaned_df, impute_option, impute_strategy, window_size=5):
+        daily_avg = self.build_daily_average_df(cleaned_df, impute_option, impute_strategy)
         instance_rows = []
 
         # group rows by id, sort by date, build features
@@ -97,16 +92,16 @@ class FeatureMaker():
         df["mood_output"] = df["mood"].apply(lambda x: 1 if x >= mood_median else 0)
         return df
 
-    def build_rnn_temporal_dataset(self, df_instances, impute_option):
+    def build_rnn_temporal_dataset(self, df_instances, impute_option, impute_strategy=RBF_BAYESIAN_RIDGE):
         if impute_option == EXP_ML_IMPUTE:
             results = self.build_daily_average_df(df_instances, impute_option)
             for impute_method, daily_avg in results.items():
                 daily_avg = DataCleaner.fill_null_vars_with_zero(daily_avg)
                 yield self.daily_avg_to_numpy_seqs(daily_avg)
         else:
-            daily_avg = self.build_daily_average_df(df_instances, impute_option)
+            # best ML impute strategy is RBF+BAYESIAN_RIDGE
+            daily_avg = self.build_daily_average_df(df_instances, impute_option, impute_strategy)
             yield self.daily_avg_to_numpy_seqs(daily_avg)
-
 
     def daily_avg_to_numpy_seqs(self, daily_avg, sequence_length=6):
         daily_avg = FeatureMaker.categorize_mood_col(daily_avg)

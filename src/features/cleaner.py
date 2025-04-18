@@ -1,57 +1,32 @@
 import pandas as pd
 import numpy as np
 
+from sklearn.linear_model import BayesianRidge
 from sklearn.experimental import enable_iterative_imputer  # noqa
 from sklearn.impute import IterativeImputer
 from sklearn.ensemble import RandomForestRegressor, HistGradientBoostingRegressor
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.kernel_approximation import Nystroem
+from sklearn.neighbors import KNeighborsRegressor
+
+from src.utils.const import VARIABLE_ACCEPTED_RANGES, DURATION_VARS, LOCF_VARS, ALL_VARS, CATEGORICAL_VARS, ROLLING_MEAN_VARS, \
+    RBF_BAYESIAN_RIDGE, BAYESIAN_RIDGE, KNN_REGRESSOR, GRADIENT_BOOSTING_REGRESSOR, RF_REGRESSOR
 
 
 class DataCleaner:
-    variable_accepted_ranges = {
-        "mood": (1, 10),
-        "circumplex.arousal": (-2, 2),
-        "circumplex.valence": (-2, 2),
-        "activity": (0, 1),
-        "call": (0, 1),
-        "sms": (0, 1)
-    }
-    duration_vars = [
-        "screen", "appCat.builtin", "appCat.communication", "appCat.entertainment",
-        "appCat.finance", "appCat.game", "appCat.office", "appCat.other", "appCat.social",
-        "appCat.travel", "appCat.unknown", "appCat.utilities", "appCat.weather"
-    ]
-
-    locf_variables = ["mood", "circumplex.arousal", "circumplex.valence"]
-    rolling_mean_variables = ["activity"] + duration_vars
-    all_variables = [
-        "mood",
-        "circumplex.arousal",
-        "circumplex.valence",
-        "activity",
-        "screen",
-        "call",
-        "sms",
-        "appCat.builtin",
-        "appCat.communication",
-        "appCat.entertainment",
-        "appCat.finance",
-        "appCat.game",
-        "appCat.office",
-        "appCat.other",
-        "appCat.social",
-        "appCat.travel",
-        "appCat.unknown",
-        "appCat.utilities",
-        "appCat.weather"
-    ]
+    variable_accepted_ranges = VARIABLE_ACCEPTED_RANGES
+    duration_vars = DURATION_VARS
+    locf_variables = LOCF_VARS
+    rolling_mean_variables = ROLLING_MEAN_VARS
+    all_variables = ALL_VARS
     SIZE_ROLLING_WINDOW = 5
     MIN_PERIODS_IN_WINDOW = 1
-
 
     @staticmethod
     def apply_variable_accepted_ranges(df):
         for var, (vmin, vmax) in DataCleaner.variable_accepted_ranges.items():
-            if var in ["call", "sms"]:
+            if var in CATEGORICAL_VARS:
                 df.loc[(df["variable"] == var) & (~df["value"].isin([vmin, vmax])), "value"] = pd.NA
             else:
                 df.loc[(df["variable"] == var) & ((df["value"] < vmin) | (df["value"] > vmax)), "value"] = pd.NA
@@ -60,7 +35,7 @@ class DataCleaner:
         return df
 
     @staticmethod
-    def impute_variable(var_group):
+    def simple_impute_variable(var_group):
         var = var_group["variable"].iloc[0]
         if var in DataCleaner.locf_variables:
             var_group["value"] = var_group["value"].ffill()
@@ -77,21 +52,24 @@ class DataCleaner:
         group["value"] = group["value"].fillna(global_means[var])
         return group
 
+    @staticmethod
+    def locf_rolling_mean_impute_dataframe(df):
+        df_imputed = df.groupby(["id", "variable"], group_keys=False).apply(DataCleaner.simple_impute_variable)
+        global_means = df_imputed.groupby("variable")["value"].mean()
+        clean_df = df_imputed.groupby("variable", group_keys=False).apply(lambda g: DataCleaner.fill_remaining_na(g, global_means))
+        clean_df = clean_df.dropna()
+        return clean_df
+
     @classmethod
-    def clean_and_impute(cls, df):
+    def clean_data_pipe(cls, df, scale_and_transform=False):
         df = cls.apply_variable_accepted_ranges(df)
         df["time"] = pd.to_datetime(df["time"])
         df = df.sort_values(by=["id", "variable", "time"]).reset_index(drop=True)
-        # clean_df = df.groupby(["id", "variable"], group_keys=False)
-        clean_df = cls.log_transform_duration_columns(df)
-        clean_df = cls.scale_arousal_valence(clean_df)
-
-        # df_imputed = df.groupby(["id", "variable"], group_keys=False).apply(cls.impute_variable)
-        #
-        # global_means = df_imputed.groupby("variable")["value"].mean()
-        # clean_df = df_imputed.groupby("variable", group_keys=False).apply(lambda g: cls.fill_remaining_na(g, global_means))
-        #
-        # clean_df = clean_df.dropna()
+        if scale_and_transform:
+            clean_df = cls.log_transform_duration_columns(df)
+            clean_df = cls.scale_arousal_valence(clean_df)
+        else:
+            clean_df = df
         return clean_df
 
     @staticmethod
@@ -113,12 +91,14 @@ class DataCleaner:
         return df
 
     @staticmethod
-    def advanced_impute_missing_with_ml(df, columns=None):
+    def advanced_impute_missing_with_ml(df, strategy=RBF_BAYESIAN_RIDGE, columns=None):
         if columns is None:
-            print(df.columns, 'df cols')
-            # columns = df.columns - set(["id", "mood_output", "mood", "date"])
             columns = list(set(df.columns) - {"id", "mood_output", "mood", "date"})
-        imputer = IterativeImputer(estimator=RandomForestRegressor(), random_state=42, max_iter=25)
+        print(f"Imputing missing values with ML - {strategy} option..")
+        if strategy == RBF_BAYESIAN_RIDGE: # used for temporal rnn model
+            imputer = IterativeImputer(estimator=make_pipeline(Nystroem(), BayesianRidge()), random_state=42, verbose=1)
+        elif strategy == RF_REGRESSOR:
+            imputer = IterativeImputer(estimator=RandomForestRegressor(), random_state=42, max_iter=25)
         df[columns] = imputer.fit_transform(df[columns])
         return df
 
@@ -132,22 +112,15 @@ class DataCleaner:
 
     @staticmethod
     def ml_impute_experiments(df, columns=None):
-        from sklearn.linear_model import BayesianRidge
-        from sklearn.ensemble import RandomForestRegressor
-        from sklearn.impute import IterativeImputer
-        from sklearn.pipeline import make_pipeline
-        from sklearn.preprocessing import StandardScaler
-        from sklearn.kernel_approximation import Nystroem
-        from sklearn.neighbors import KNeighborsRegressor
-
         if columns is None:
             columns = list(set(df.columns) - {"id", "mood_output", "mood", "date"})
 
         strategies = {
-            # "BayesianRidge": make_pipeline(StandardScaler(), BayesianRidge()),
-            # "RandomForest": HistGradientBoostingRegressor(), #n_estimators=10, random_state=42),
-            #  "KNN": make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=10)),
-            "RBF+Ridge": make_pipeline(Nystroem(), BayesianRidge())
+            BAYESIAN_RIDGE: make_pipeline(StandardScaler(), BayesianRidge()),
+            GRADIENT_BOOSTING_REGRESSOR: HistGradientBoostingRegressor(),
+            RF_REGRESSOR: RandomForestRegressor(),
+            KNN_REGRESSOR: make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=10)),
+            RBF_BAYESIAN_RIDGE: make_pipeline(Nystroem(), BayesianRidge())
         }
 
         results = {}

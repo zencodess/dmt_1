@@ -13,19 +13,18 @@ import os
 import joblib
 import matplotlib.pyplot as plt
 
+from src.utils.const import EXP_ML_IMPUTE, ML_IMPUTE, MEDIAN_IMPUTE, ZERO_IMPUTE, INTERPOLATE_IMPUTE, LOCF_ROLLING_MEAN_IMPUTE
+
 
 DATA_PATH=os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','data')
 MODEL_PATH=os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','models')
-ML_IMPUTE = 'ML_IMPUTE'
-MEDIAN_IMPUTE = 'MEDIAN_IMPUTE'
-ZERO_IMPUTE = 'ZERO_IMPUTE'
-INTERPOLATE_IMPUTE = 'INTERPOLATE_IMPUTE'
+
 
 
 
 class RandomForest():
-    def modeltraining(self,clean_data,impute_option='MEDIAN_IMPUTE'):
-        print("Random Forest Model for Dataset cleaned with imlute option: ",impute_option)
+    def modeltraining(self,clean_data,impute_option=MEDIAN_IMPUTE):
+        print("Random Forest Model for Dataset cleaned with impute option: ",impute_option)
         X=clean_data.drop(['mood_output','id','date'], axis=1)
         Y=clean_data[['mood_output']].values.ravel()
         X_train,X_test,Y_train,Y_test=train_test_split(X,Y,test_size=0.2,random_state=42)

@@ -26,9 +26,9 @@ class RNNClassifier(torch_nn.Module):
 
     def train_rnn_model(self, train_x, train_y, val_x, val_y, device='cpu', epochs=500, batch_size=32, lr=0.005, prob_treshold=0.52):
         self.to(device)
-        print("Train label balance:", np.bincount(train_y))
-        print("Val label balance:", np.bincount(val_y))
-        # optimizer = optim.Adam(self.parameters(), lr=lr)
+        # print("Train label balance:", np.bincount(train_y))
+        # print("Val label balance:", np.bincount(val_y))
+
         optimizer = optim.Adam(self.parameters(), lr=lr)
         # optimizer = torch.optim.AdamW(self.parameters(), lr=lr)
         # optimizer = torch.optim.RMSprop(self.parameters(), lr=lr, alpha=0.9)
@@ -62,16 +62,14 @@ class RNNClassifier(torch_nn.Module):
                     pred, _ = self(xb)
                     prob = torch.sigmoid(pred).cpu().numpy()
                     val_probs.extend(prob)
-
-                    # preds = (np.array(val_probs) > prob_treshold).astype(int)
                     # preds = np.round(prob)
                     # all_preds.extend(preds)
                     all_labels.extend(yb.numpy())
-            # Threshold sweep to maximize F1
-            # best_f1 = 0
-            # best_threshold = 0.52
-            # thresholds = np.linspace(0.3, 0.7, 41)
 
+            # prob threshold experiments to maximize F1
+            # best_f1 = 0
+            # best_threshold = 0.5 # found best treshold 0.52
+            # thresholds = np.linspace(0.3, 0.7, 41)
             # for t in thresholds:
             #     preds = (np.array(val_probs) > t).astype(int)
             #     f1 = f1_score(all_labels, preds)
@@ -82,21 +80,24 @@ class RNNClassifier(torch_nn.Module):
             all_preds = (np.array(val_probs) > prob_treshold).astype(int)
             f1 = f1_score(all_labels, all_preds)
             auc = roc_auc_score(all_labels, all_preds)
-            scheduler.step() #f1
-            # for param_group in optimizer.param_groups:
-            #     print(f"Current LR: {param_group['lr']}")
+            scheduler.step() #f1 - f1 should be used for ReduceLROnPlateau scheduler as argument
+
             if (epoch + 1)% 100 == 0:
                 print(f"Epoch {epoch + 1}: F1 = {f1:.4f}, AUC = {auc:.4f}")
                 # print(f"Best threshold: {best_threshold:.2f} with F1 = {best_f1:.4f}")
         self.save_model()
 
     def save_model(self):
-        # torch.save(self.state_dict(), "models/rnn_classifier.pth")
-        # print("RNN model saved to models/rnn_classifier.pth")
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         model_path = f"models/rnn_classifier_{timestamp}.pth"
         torch.save(self.state_dict(), model_path)
         print(f"RNN model saved to {model_path}")
+
+    def load_model(self, model_path, device='cpu'):
+        self.load_state_dict(torch.load(model_path, map_location=device))
+        self.eval()
+        self.to(device)
+        print(f"RNN Classifier Model loaded from {model_path}")
 
     def test_rnn_model(self, test_x, test_y, device='cpu', prob_treshold=0.52):
         self.eval()
