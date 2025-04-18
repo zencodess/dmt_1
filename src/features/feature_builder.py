@@ -46,7 +46,7 @@ class FeatureMaker():
         adv_imputed_daily_avg = DataCleaner.fill_null_vars_with_zero(adv_imputed_daily_avg)
         return adv_imputed_daily_avg
 
-    def build_non_temporal_dataset_from_cleaned(self, cleaned_df, impute_option, impute_strategy, window_size=5):
+    def build_non_temporal_dataset_from_cleaned(self, cleaned_df, impute_option, impute_strategy=RBF_BAYESIAN_RIDGE, window_size=5):
         daily_avg = self.build_daily_average_df(cleaned_df, impute_option, impute_strategy)
         instance_rows = []
 
@@ -159,11 +159,11 @@ class FeatureMaker():
         return train_x, val_x, test_x, train_y, val_y, test_y
 
     @staticmethod
-    def train_test_split_regression(df, stratify_col='screen_t', test_size=0.2):
+    def train_test_split_regression(df, test_size=0.2):
+        # train vs test
         train_df, test_df = train_test_split(
-                                    df,
-                                    test_size=test_size,
-                                    stratify=stratify_col,
-                                    random_state=42
-                                )
+            df,
+            test_size=test_size,
+            random_state=42
+        )
         return train_df, test_df

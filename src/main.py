@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import numpy as np
 
 from src.features.cleaner import DataCleaner
 from src.features.feature_builder import FeatureMaker
@@ -8,6 +9,8 @@ from src.trainers.rnn_classifier import AttentionLSTM
 from src.trainers.randomforest_classifier import RandomForest, MODEL_PATH
 from src.utils.const import EXP_ML_IMPUTE, ML_IMPUTE, MEDIAN_IMPUTE, ZERO_IMPUTE, INTERPOLATE_IMPUTE, IMPUTE_OPTIONS, \
     LOCF_ROLLING_MEAN_IMPUTE, BEST_RNN_MODEL, RF_REGRESSOR, RBF_BAYESIAN_RIDGE
+from src.trainers.arima_regression import ARIMARegression
+from src.trainers.svr_regression import SVRRegression
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_DIR, 'data')
@@ -23,6 +26,8 @@ class PredictMood():
         self.rf_input_df = None
         self.rnn_seqs, self.rnn_labels = None, None
         self.rnn_instance = None
+        self.arima_regression = None
+        self.svr_regression = None
         self.regression_df = None
 
     def read_data(self):
@@ -63,9 +68,27 @@ class PredictMood():
             self.rnn_instance.train_rnn_model(train_x, train_y, val_x, val_y)
             self.rnn_instance.test_rnn_model(test_x, test_y)
 
-    def train_regression_models(self, impute_option=MEDIAN_IMPUTE):
+    def train_regression_models(self, target_variable, impute_option=MEDIAN_IMPUTE):
+        print("=== Starting Regression Model Training ===")
         self.regression_df = self.feature_maker.build_non_temporal_dataset_from_cleaned(self.clean_df, impute_option)
-        self.regression_df.to_csv(os.path.join(DATA_PATH,"regression_df.csv"), index=False)
+        if target_variable == 'screen_t':
+            print(f"Applying log transformation to target variable: {target_variable}")
+            self.regression_df[target_variable + '_log'] = np.log(self.regression_df[target_variable])
+            target_variable = target_variable + '_log'
+        train_df, test_df = FeatureMaker.train_test_split_regression(self.regression_df)
+
+        # SVR regression
+        print("\n SVR Regression going on..")
+        self.svr_regression = SVRRegression()
+        svr_model, y_test_svr, y_pred_svr = self.svr_regression.train_and_evaluate(
+            train_df, test_df, target_variable=target_variable)
+
+        print('TEST')
+        # ARIMA regression on full regression_df
+        print("\n ARIMA Regression going on..")
+        self.arima_regression = ARIMARegression()
+        actual_arima, pred_arima = self.arima_regression.train_and_evaluate(self.regression_df, target_variable=target_variable)
+        print("Regression Model Training Completed")
 
     def run(self):
         self.read_data()
@@ -84,7 +107,7 @@ class PredictMood():
         self.rnn_classifier_run(impute_option=ML_IMPUTE, impute_strategy=RBF_BAYESIAN_RIDGE, production_run=True)
 
         # train regression models
-        # insert code
+        self.train_regression_models(target_variable='screen_t')
 
 
 
