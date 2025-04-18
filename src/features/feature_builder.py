@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from src.features.cleaner import DataCleaner
 
 
+EXP_ML_IMPUTE = 'EXP_ML_IMPUTE'
 ML_IMPUTE = 'ML_IMPUTE'
 MEDIAN_IMPUTE = 'MEDIAN_IMPUTE'
 ZERO_IMPUTE = 'ZERO_IMPUTE'
@@ -34,10 +35,11 @@ class FeatureMaker():
         daily_avg =  daily_avg.sort_values(by=["id", "date"]).reset_index(drop=True)
         #print('daily_avg', daily_avg.head())
 
-        if impute_option == ML_IMPUTE:
-            # adv_imputed_daily_avg = DataCleaner.advanced_impute_missing_with_ml(daily_avg)
+        if impute_option == EXP_ML_IMPUTE:
             impute_results = DataCleaner.ml_impute_experiments(daily_avg)
             return impute_results
+        elif impute_option == ML_IMPUTE:
+            adv_imputed_daily_avg = DataCleaner.advanced_impute_missing_with_ml(daily_avg)
         elif impute_option == MEDIAN_IMPUTE:
             adv_imputed_daily_avg = DataCleaner.fill_null_values_with_median(daily_avg)
         elif impute_option == INTERPOLATE_IMPUTE:
@@ -96,7 +98,7 @@ class FeatureMaker():
         return df
 
     def build_rnn_temporal_dataset(self, df_instances, impute_option):
-        if impute_option == ML_IMPUTE:
+        if impute_option == EXP_ML_IMPUTE:
             results = self.build_daily_average_df(df_instances, impute_option)
             for impute_method, daily_avg in results.items():
                 daily_avg = DataCleaner.fill_null_vars_with_zero(daily_avg)

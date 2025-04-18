@@ -75,11 +75,11 @@ class PredictMood():
         self.clean_data()
 
         # train random forest classifier
-        self.rf_data_categorization_preparation(impute_option='ML_IMPUTE')
-        self.train_randomforest_classifier(impute_option='ML_IMPUTE')
+        # self.rf_data_categorization_preparation(impute_option='ML_IMPUTE')
+        # self.train_randomforest_classifier(impute_option='ML_IMPUTE')
        
         # train rnn classifier
-        self.rnn_classifier_run(impute_option='ML_IMPUTE')
+        self.rnn_classifier_run(impute_option='EXP_ML_IMPUTE')
 
         # train regression models
         # insert code

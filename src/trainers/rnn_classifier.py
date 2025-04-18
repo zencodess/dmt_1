@@ -24,12 +24,16 @@ class RNNClassifier(torch_nn.Module):
         out = self.dense(out[:, -1, :])
         return out.squeeze(), 0
 
-    def train_rnn_model(self, train_x, train_y, val_x, val_y, device='cpu', epochs=500, batch_size=32, lr=0.001):
+    def train_rnn_model(self, train_x, train_y, val_x, val_y, device='cpu', epochs=500, batch_size=32, lr=0.005, prob_treshold=0.52):
         self.to(device)
         print("Train label balance:", np.bincount(train_y))
         print("Val label balance:", np.bincount(val_y))
         # optimizer = optim.Adam(self.parameters(), lr=lr)
         optimizer = optim.Adam(self.parameters(), lr=lr)
+        # optimizer = torch.optim.AdamW(self.parameters(), lr=lr)
+        # optimizer = torch.optim.RMSprop(self.parameters(), lr=lr, alpha=0.9)
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=5, factor=0.5)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.5)
         criterion = torch_nn.BCEWithLogitsLoss()
 
         train_dataset = TensorDataset(torch.tensor(train_x), torch.tensor(train_y).float())
@@ -51,18 +55,39 @@ class RNNClassifier(torch_nn.Module):
 
             self.eval()
             all_preds, all_labels = [], []
+            val_probs = []
             with torch.no_grad():
                 for xb, yb in val_loader:
                     xb = xb.to(device)
                     pred, _ = self(xb)
                     prob = torch.sigmoid(pred).cpu().numpy()
-                    preds = np.round(prob)
-                    all_preds.extend(preds)
-                    all_labels.extend(yb.numpy())
+                    val_probs.extend(prob)
 
+                    # preds = (np.array(val_probs) > prob_treshold).astype(int)
+                    # preds = np.round(prob)
+                    # all_preds.extend(preds)
+                    all_labels.extend(yb.numpy())
+            # Threshold sweep to maximize F1
+            # best_f1 = 0
+            # best_threshold = 0.52
+            # thresholds = np.linspace(0.3, 0.7, 41)
+
+            # for t in thresholds:
+            #     preds = (np.array(val_probs) > t).astype(int)
+            #     f1 = f1_score(all_labels, preds)
+            #     if f1 > best_f1:
+            #         best_f1 = f1
+            #         best_threshold = t
+
+            all_preds = (np.array(val_probs) > prob_treshold).astype(int)
             f1 = f1_score(all_labels, all_preds)
             auc = roc_auc_score(all_labels, all_preds)
-        print(f"Epoch {epoch + 1}: F1 = {f1:.4f}, AUC = {auc:.4f}")
+            scheduler.step() #f1
+            # for param_group in optimizer.param_groups:
+            #     print(f"Current LR: {param_group['lr']}")
+            if (epoch + 1)% 100 == 0:
+                print(f"Epoch {epoch + 1}: F1 = {f1:.4f}, AUC = {auc:.4f}")
+                # print(f"Best threshold: {best_threshold:.2f} with F1 = {best_f1:.4f}")
         self.save_model()
 
     def save_model(self):
@@ -73,7 +98,7 @@ class RNNClassifier(torch_nn.Module):
         torch.save(self.state_dict(), model_path)
         print(f"RNN model saved to {model_path}")
 
-    def test_rnn_model(self, test_x, test_y, device='cpu'):
+    def test_rnn_model(self, test_x, test_y, device='cpu', prob_treshold=0.52):
         self.eval()
         self.to(device)
 
@@ -81,15 +106,18 @@ class RNNClassifier(torch_nn.Module):
         test_loader = DataLoader(test_dataset, batch_size=32)
 
         all_preds, all_labels = [], []
+        val_probs = []
         with torch.no_grad():
             for xb, yb in test_loader:
                 xb = xb.to(device)
                 pred, _ = self(xb)
                 prob = torch.sigmoid(pred).cpu().numpy()
-                preds = np.round(prob)
-                all_preds.extend(preds)
-                all_labels.extend(yb.numpy())
+                val_probs.extend(prob)
 
+                # preds = np.round(prob)
+                # all_preds.extend(preds)
+                all_labels.extend(yb.numpy())
+        all_preds = (np.array(val_probs) > prob_treshold).astype(int)
         f1 = f1_score(all_labels, all_preds)
         auc = roc_auc_score(all_labels, all_preds)
         print(f"Test Results — F1: {f1:.4f}, AUC: {auc:.4f}")

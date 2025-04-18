@@ -83,15 +83,16 @@ class DataCleaner:
         df["time"] = pd.to_datetime(df["time"])
         df = df.sort_values(by=["id", "variable", "time"]).reset_index(drop=True)
         # clean_df = df.groupby(["id", "variable"], group_keys=False)
-        clean_df = cls.log_transform_duration_columns(df)
-        clean_df = cls.scale_arousal_valence(clean_df)
+        # clean_df = cls.log_transform_duration_columns(df)
+        # clean_df = cls.scale_arousal_valence(clean_df)
+
         # df_imputed = df.groupby(["id", "variable"], group_keys=False).apply(cls.impute_variable)
         #
         # global_means = df_imputed.groupby("variable")["value"].mean()
         # clean_df = df_imputed.groupby("variable", group_keys=False).apply(lambda g: cls.fill_remaining_na(g, global_means))
         #
         # clean_df = clean_df.dropna()
-        return clean_df
+        return df#clean_df
 
     @staticmethod
     def fill_null_vars_with_zero(df):
@@ -143,16 +144,16 @@ class DataCleaner:
             columns = list(set(df.columns) - {"id", "mood_output", "mood", "date"})
 
         strategies = {
-            "BayesianRidge": make_pipeline(StandardScaler(), BayesianRidge()),
-            "RandomForest": HistGradientBoostingRegressor(), #n_estimators=10, random_state=42),
-             "KNN": make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=10)),
-            "RBF+Ridge": make_pipeline(Nystroem(gamma=0.1, n_components=150), BayesianRidge())
+            # "BayesianRidge": make_pipeline(StandardScaler(), BayesianRidge()),
+            # "RandomForest": HistGradientBoostingRegressor(), #n_estimators=10, random_state=42),
+            #  "KNN": make_pipeline(StandardScaler(), KNeighborsRegressor(n_neighbors=10)),
+            "RBF+Ridge": make_pipeline(Nystroem(), BayesianRidge())
         }
 
         results = {}
         for name, estimator in strategies.items():
             print(f"\nRunning imputation with: {name}")
-            imputer = IterativeImputer(estimator=estimator, max_iter=10, random_state=42, verbose=1)
+            imputer = IterativeImputer(estimator=estimator, random_state=42, verbose=1)
             df_copy = df.copy()
             try:
                 df_copy[columns] = imputer.fit_transform(df_copy[columns])
