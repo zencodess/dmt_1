@@ -28,15 +28,15 @@ class RandomForest():
         X=clean_data.drop(['mood_output','id','date'], axis=1)
         Y=clean_data[['mood_output']].values.ravel()
         X_train_init,X_test_init,Y_train_init,Y_test_init=train_test_split(X,Y,test_size=0.2,random_state=42)
-        print(clean_data[['mood_output']].value_counts(normalize=True))
+        #print(clean_data[['mood_output']].value_counts(normalize=True))
         rf=RandomForestClassifier(random_state=2) #A simple random forest that uses all columns
         rf.fit(X_train_init,Y_train_init)
         feature_importances = pd.Series(rf.feature_importances_, index=X_train_init.columns).sort_values(ascending=False) #Get the important features
-        print(feature_importances[:5])
+        #print(feature_importances[:5])
         
         result = permutation_importance(rf, X_train_init, Y_train_init, n_repeats=10, random_state=42)
         importance = pd.Series(result.importances_mean, index=X_train_init.columns).sort_values(ascending=False)
-        print(importance[:5])
+        #print(importance[:5])
         X1=clean_data[feature_importances.index[:5]]
         Y=clean_data[['mood_output']].values.ravel()
         X2=clean_data[importance.index[:5]]
