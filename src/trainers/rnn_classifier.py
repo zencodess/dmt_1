@@ -90,7 +90,7 @@ class RNNClassifier(torch_nn.Module):
         print(f"RNN model saved to {model_path}")
 
     def load_model(self, model_path, device='cpu'):
-        self.load_state_dict(torch.load(model_path, map_location=device))
+        self.load_state_dict(torch.load(model_path, map_location=device), strict=False)
         self.eval()
         self.to(device)
         print(f"RNN Classifier Model loaded from {model_path}")

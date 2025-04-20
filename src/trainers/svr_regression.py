@@ -20,7 +20,6 @@ class SVRRegression:
             'appCat.travel_sum_hist', 'appCat.utilities_sum_hist', 'appCat.weather_sum_hist'
 ]
 
-
     def train_and_evaluate(self, train_df, test_df, target_variable='screen_t'):
         print("Running SVR Regression with Y-scaling...")
 
@@ -35,9 +34,8 @@ class SVRRegression:
 
         pipeline = make_pipeline(StandardScaler(), SVR())
         param_grid = {
-            'svr__C': [0.1, 1, 10, 5],
-            'svr__epsilon': [0.1, 0.2, 0.5, 0.9],
-            'svr__kernel': ['rbf', 'linear'],
+            'svr__C': [0.1, 0.5, 0.75, 1, 3, 10, 5, 7, 8],
+            'svr__kernel': ['rbf', 'linear', 'poly', 'sigmoid'],
             'svr__gamma': ['scale', 'auto']
         }
 

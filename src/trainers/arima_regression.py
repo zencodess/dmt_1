@@ -6,6 +6,8 @@ from itertools import product
 import warnings
 import matplotlib.pyplot as plt
 
+import warnings
+warnings.filterwarnings("ignore")
 
 class ARIMARegression:
     def __init__(self):
@@ -24,7 +26,9 @@ class ARIMARegression:
 
         for user_id, user_data in df.groupby('id'):
             user_data = user_data.sort_values('date')
-            ts = user_data[target_variable].dropna()
+            user_data['date'] = pd.to_datetime(user_data['date'])
+            user_data.set_index('date', inplace=True)
+            ts = user_data[target_variable]
 
             if len(ts) < 10:
                 continue
