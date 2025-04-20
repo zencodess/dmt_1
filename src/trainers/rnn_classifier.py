@@ -20,8 +20,7 @@ class RNNClassifier(torch_nn.Module):
         out = self.dense(out[:, -1, :]) # (batch, 1)
         return out.squeeze(), 0
 
-    def train_rnn_model(self, train_x, train_y, val_x, val_y, device='cpu', epochs=500, batch_size=32, lr=0.005, prob_treshold=0.52):
-        self.to(device)
+    def train_rnn_model(self, train_x, train_y, val_x, val_y, epochs=500, batch_size=32, lr=0.005, prob_treshold=0.52):
         # print("train label balance:", np.bincount(train_y))
         # print("val label balance:", np.bincount(val_y))
 
@@ -41,7 +40,6 @@ class RNNClassifier(torch_nn.Module):
         for epoch in range(epochs):
             self.train()
             for xb, yb in train_loader:
-                xb, yb = xb.to(device), yb.to(device)
                 pred, _ = self(xb)
                 loss = criterion(pred, yb)
                 optimizer.zero_grad()
@@ -54,9 +52,8 @@ class RNNClassifier(torch_nn.Module):
             val_probs = []
             with torch.no_grad():
                 for xb, yb in val_loader:
-                    xb = xb.to(device)
                     pred, _ = self(xb)
-                    prob = torch.sigmoid(pred).cpu().numpy()
+                    prob = torch.sigmoid(pred).numpy()
                     val_probs.extend(prob)
                     # preds = np.round(prob)
                     # all_preds.extend(preds)
@@ -92,13 +89,10 @@ class RNNClassifier(torch_nn.Module):
     def load_model(self, model_path, device='cpu'):
         self.load_state_dict(torch.load(model_path, map_location=device), strict=False)
         self.eval()
-        self.to(device)
         print(f"RNN Classifier Model loaded from {model_path}")
 
-    def test_rnn_model(self, test_x, test_y, device='cpu', prob_treshold=0.52):
+    def test_rnn_model(self, test_x, test_y, prob_treshold=0.52):
         self.eval()
-        self.to(device)
-
         test_dataset = TensorDataset(torch.tensor(test_x), torch.tensor(test_y).float())
         test_loader = DataLoader(test_dataset, batch_size=32)
 
@@ -106,9 +100,8 @@ class RNNClassifier(torch_nn.Module):
         val_probs = []
         with torch.no_grad():
             for xb, yb in test_loader:
-                xb = xb.to(device)
                 pred, _ = self(xb)
-                prob = torch.sigmoid(pred).cpu().numpy()
+                prob = torch.sigmoid(pred).numpy()
                 val_probs.extend(prob)
 
                 # preds = np.round(prob)
