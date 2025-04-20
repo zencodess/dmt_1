@@ -11,6 +11,8 @@ from src.utils.const import EXP_ML_IMPUTE, ML_IMPUTE, MEDIAN_IMPUTE, ZERO_IMPUTE
     LOCF_ROLLING_MEAN_IMPUTE, BEST_RNN_MODEL, RF_REGRESSOR, RBF_BAYESIAN_RIDGE
 from src.trainers.arima_regression import ARIMARegression
 from src.trainers.svr_regression import SVRRegression
+from sklearn.model_selection import RandomizedSearchCV, train_test_split
+import joblib
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_DIR, 'data')
@@ -49,9 +51,17 @@ class PredictMood():
             file_suffix = ""
         self.rf_input_df.to_csv(os.path.join(DATA_PATH, f"rf_input_df{file_suffix}.csv"), index=False)
 
-    def train_randomforest_classifier(self, impute_option=MEDIAN_IMPUTE):
-        self.RandomForestInstance = RandomForest()
-        self.RandomForestInstance.modeltraining(self.rf_input_df, impute_option=impute_option)
+    def train_randomforest_classifier(self, impute_option=MEDIAN_IMPUTE,test_only=True):
+        if(test_only == True):
+            self.RandomForestInstance = RandomForest()
+            model = joblib.load(os.path.join(MODEL_PATH,'best_rf_model.joblib'))
+            X=self.rf_input_df[model.feature_names_in_]
+            Y=self.rf_input_df[['mood_output']].values.ravel()
+            X_train_init,X_test_init,Y_train_init,Y_test_init=train_test_split(X,Y,test_size=0.2,random_state=42)
+            self.RandomForestInstance.testmodel(X_test_init,Y_test_init,'best_rf_model')
+        else:
+            self.RandomForestInstance = RandomForest()
+            self.RandomForestInstance.modeltraining(self.rf_input_df, impute_option=impute_option)
 
     def rnn_classifier_run(self, impute_option=MEDIAN_IMPUTE, impute_strategy=RBF_BAYESIAN_RIDGE, production_run=True):
         for seqs, labels in self.feature_maker.build_rnn_temporal_dataset(self.clean_df, impute_option,
@@ -95,7 +105,7 @@ class PredictMood():
 
         # train random forest classifier
         self.rf_data_categorization_preparation(impute_option=ML_IMPUTE, impute_strategy=RBF_BAYESIAN_RIDGE)
-        self.train_randomforest_classifier(impute_option=ML_IMPUTE)
+        self.train_randomforest_classifier(impute_option=ML_IMPUTE,test_only=True)
 
         # train rnn classifier
         # NOTE: you do not need to train temporal rnn model, we already did and stored at models/best_rnn_model.pth
