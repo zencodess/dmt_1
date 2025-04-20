@@ -95,13 +95,12 @@ class PredictMood():
         self.clean_data()
 
         # train random forest classifier
-        self.rf_data_categorization_preparation(impute_option=ML_IMPUTE, impute_strategy=RF_REGRESSOR)
+        self.rf_data_categorization_preparation(impute_option=ML_IMPUTE, impute_strategy=RBF_BAYESIAN_RIDGE)
         self.train_randomforest_classifier(impute_option=ML_IMPUTE)
-       
         # train rnn classifier
         # you do not need to train temporal rnn model, we already did and stored at models/best_rnn_model.pth
         # but just in case, you can try using below function
-        # self.rnn_classifier_run(impute_option=ML_IMPUTE, impute_strategy=RBF_BAYESIAN_RIDGE, production_run=False)
+        #self.rnn_classifier_run(impute_option=ML_IMPUTE, impute_strategy=RBF_BAYESIAN_RIDGE, production_run=False)
 
         # use best rnn classifier already trained before
         self.rnn_classifier_run(impute_option=ML_IMPUTE, impute_strategy=RBF_BAYESIAN_RIDGE, production_run=True)
