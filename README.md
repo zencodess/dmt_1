@@ -5,7 +5,7 @@
 3. You will be able to observe the results in the order: 
 
  - Random Forests classifer for mood output prediction, 
- - RNN (LSTM) best model classifier on mood output prediction and then 
+ - RNN (LSTM) best model classifier for mood output prediction and then 
  - Regression results for screen activity and activity score predictions. 
 
 **NOTE** : We already trained the RNN classifier model and saved the best model. you need not train it again. So, we commented on line 103 
