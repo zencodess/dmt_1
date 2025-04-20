@@ -128,7 +128,8 @@ class AttentionLSTM(RNNClassifier):
     def forward(self, x):  # x: (batch, seq, features)
         lstm_out, _ = self.lstm(x)  # (batch, seq, hidden)
         attn_weights = torch.softmax(self.attn(lstm_out).squeeze(-1), dim=1)  # (batch, seq, hidden) * (hidden, 1) -> (batch, seq, 1) -> (batch, seq)
-        context = torch.sum(lstm_out * attn_weights.unsqueeze(-1), dim=1)  # (batch, seq, hidden) .* (batch, seq, 1) = (batch, hidden) - sum
+        # context = torch.sum(lstm_out * attn_weights.unsqueeze(-1), dim=1)  # (batch, seq, hidden) .* (batch, seq, 1) = (batch, hidden) - sum
+        context = torch.bmm(attn_weights.unsqueeze(1), lstm_out).squeeze(1)
         context = self.dropout(context) # (batch, hidden)
         output = self.fc(context)  # (batch_size, 1)
         return output.squeeze(-1), attn_weights
