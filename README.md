@@ -14,4 +14,4 @@
 If you want to train it again, uncomment the line above and comment below line, at line number 116
 `self.rnn_classifier_run(impute_option=ML_IMPUTE, impute_strategy=RBF_BAYESIAN_RIDGE, production_run=True)`
 
-Random forest algorithm also runs only the testing phase of the model. If you want to train the Random Forest algorithm again then please change the test_only value in Line 108 from True to False. 
+Random forest algorithm also runs only the testing phase of the model. If you want to train the Random Forest algorithm again then please change the `test_only` value in Line 108 from True to False. 
