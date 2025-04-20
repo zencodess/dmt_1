@@ -118,7 +118,7 @@ class FeatureMaker():
                     last_day_features = last_day_features.reshape(1, -1)
                     if last_day_features.shape[1] < input_features.shape[1]:
                         # pad last_day_features with zeros to match input_features width
-                        pad_width = input_features.shape[1] - last_day_features.shape[1]
+                        pad_width = input_features.shape[1] - last_day_features.shape[1] # diff will always be 1, coz mood output of last day is excluded
                         last_day_features = np.pad(last_day_features, ((0, 0), (0, pad_width)), mode='constant')
                     input_features = np.vstack([input_features, last_day_features])
                     output_label = int(window.iloc[-1]["mood_output"])
